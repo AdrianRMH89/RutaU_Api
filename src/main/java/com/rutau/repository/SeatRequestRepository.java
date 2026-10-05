@@ -3,6 +3,8 @@ package com.rutau.repository;
 import com.rutau.model.RequestStatus;
 import com.rutau.model.SeatRequest;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -13,6 +15,13 @@ public interface SeatRequestRepository extends JpaRepository<SeatRequest, Long> 
     List<SeatRequest> findByTripId(Long tripId);
 
     List<SeatRequest> findByPassengerId(Long passengerId);
+
+    // US12 - Demanda por hora de salida del viaje: [hora, cantidad de solicitudes]
+    // (cuenta todas las solicitudes, incluso las rechazadas: también son demanda)
+    @Query("SELECT EXTRACT(HOUR FROM s.trip.departureTime), COUNT(s) FROM SeatRequest s "
+            + "WHERE (:zone = '' OR LOWER(s.trip.zone) = LOWER(:zone)) "
+            + "GROUP BY EXTRACT(HOUR FROM s.trip.departureTime)")
+    List<Object[]> countDemandByHour(@Param("zone") String zone);
 
     boolean existsByTripIdAndPassengerId(Long tripId, Long passengerId);
 
