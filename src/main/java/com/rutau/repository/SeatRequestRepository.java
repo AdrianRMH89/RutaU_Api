@@ -22,4 +22,7 @@ public interface SeatRequestRepository extends JpaRepository<SeatRequest, Long> 
             Collection<RequestStatus> statuses,
             LocalDateTime start,
             LocalDateTime end);
+
+    // US07 / US08 - Solicitudes de un viaje que están en ciertos estados (ej. PENDING y ACCEPTED)
+    List<SeatRequest> findByTripIdAndStatusIn(Long tripId, Collection<RequestStatus> statuses);
 }
