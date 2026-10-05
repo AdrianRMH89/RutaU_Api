@@ -14,6 +14,7 @@ import org.springframework.security.authentication.DisabledException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.List;
 import java.util.Map;
@@ -107,6 +108,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleNoResource(NoResourceFoundException ex,
                                                              HttpServletRequest req) {
         return build(HttpStatus.NOT_FOUND, "Not Found", "La ruta solicitada no existe", req);
+    }
+
+    // 400 - un parámetro de la URL tiene un tipo inválido (ej. /api/trips/abc en vez de un número)
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex,
+                                                               HttpServletRequest req) {
+        return build(HttpStatus.BAD_REQUEST, "Bad Request",
+                "El parámetro '" + ex.getName() + "' tiene un valor inválido: " + ex.getValue(), req);
     }
 
     // 500 - cualquier otro error no previsto
