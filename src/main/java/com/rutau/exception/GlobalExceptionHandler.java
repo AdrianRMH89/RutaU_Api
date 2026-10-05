@@ -1,9 +1,12 @@
 package com.rutau.exception;
 
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.ServletRequestBindingException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import com.rutau.dto.response.ApiErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,10 +17,12 @@ import org.springframework.security.authentication.DisabledException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -109,9 +114,35 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.NOT_FOUND, "Not Found", "La ruta solicitada no existe", req);
     }
 
+    // 400 - un parámetro de la URL tiene un tipo inválido (ej. /api/trips/abc en vez de un número)
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex,
+                                                               HttpServletRequest req) {
+        return build(HttpStatus.BAD_REQUEST, "Bad Request",
+                "El parámetro '" + ex.getName() + "' tiene un valor inválido: " + ex.getValue(), req);
+    }
+
     // 500 - cualquier otro error no previsto
+    // 415 - el body no se envió como JSON (ej. Content-Type: text/plain)
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ApiErrorResponse> handleMediaType(HttpMediaTypeNotSupportedException ex,
+                                                            HttpServletRequest req) {
+        return build(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Unsupported Media Type",
+                "El cuerpo de la petición debe enviarse como JSON (Content-Type: application/json)", req);
+    }
+
+    // 400 - falta un parámetro obligatorio de la URL o de la petición
+    @ExceptionHandler(ServletRequestBindingException.class)
+    public ResponseEntity<ApiErrorResponse> handleBinding(ServletRequestBindingException ex,
+                                                          HttpServletRequest req) {
+        return build(HttpStatus.BAD_REQUEST, "Bad Request",
+                "Falta un parámetro obligatorio en la petición", req);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleGeneric(Exception ex, HttpServletRequest req) {
+        // Se registra el error real en la consola para poder diagnosticarlo
+        log.error("Error no controlado en {} {}", req.getMethod(), req.getRequestURI(), ex);
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error",
                 "Ocurrió un error inesperado", req);
     }
