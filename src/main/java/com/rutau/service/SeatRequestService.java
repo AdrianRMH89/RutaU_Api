@@ -1,5 +1,6 @@
 package com.rutau.service;
 
+import com.rutau.dto.request.CancelRequestDTO;
 import com.rutau.dto.request.SeatRequestCreateDTO;
 import com.rutau.dto.response.SeatRequestResponseDTO;
 import com.rutau.exception.BusinessRuleException;
@@ -49,9 +50,9 @@ public class SeatRequestService {
             throw new BusinessRuleException("Este viaje ya no está disponible para solicitudes");
         }
 
-        // US03 - Escenario de error
+        // US03 - Escenario de error / US05 - Escenario de error
         if (trip.getAvailableSeats() <= 0) {
-            throw new ConflictException("Este viaje ya no tiene cupos disponibles");
+            throw new ConflictException("Viaje completo: este viaje ya no tiene cupos disponibles");
         }
 
         if (seatRequestRepository.existsByTripIdAndPassengerId(trip.getId(), passenger.getId())) {
@@ -68,7 +69,7 @@ public class SeatRequestService {
         if (overlap && !Boolean.TRUE.equals(dto.confirmOverlap())) {
             throw new ConflictException(
                     "Ya tienes una solicitud en otro viaje que se cruza con este horario. "
-                            + "Si deseas continuar, vuelve a enviar la solicitud con confirmOverlap: true");
+                    + "Si deseas continuar, vuelve a enviar la solicitud con confirmOverlap: true");
         }
 
         SeatRequest seatRequest = new SeatRequest();
@@ -106,7 +107,9 @@ public class SeatRequestService {
     public SeatRequestResponseDTO accept(Long requestId) {
         User driver = currentUser.get();
         SeatRequest seatRequest = findRequest(requestId);
-        Trip trip = seatRequest.getTrip();
+
+        // US05 - Se bloquea el viaje para que dos aceptaciones simultáneas no se pisen
+        Trip trip = findTripForUpdate(seatRequest.getTrip().getId());
 
         checkIsDriver(trip, driver);
         checkIsPending(seatRequest);
@@ -118,6 +121,13 @@ public class SeatRequestService {
 
         // US04 - Escenario exitoso: se reserva el asiento y se descuenta
         trip.setAvailableSeats(trip.getAvailableSeats() - 1);
+
+        // US05 - Escenario exitoso: al llegar a 0 asientos el viaje pasa a FULL
+        // y deja de mostrarse en los viajes activos
+        if (trip.getAvailableSeats() == 0) {
+            trip.setStatus(TripStatus.FULL);
+        }
+
         seatRequest.setStatus(RequestStatus.ACCEPTED);
 
         tripRepository.save(trip);
@@ -137,10 +147,50 @@ public class SeatRequestService {
         return seatRequestMapper.toResponse(seatRequestRepository.save(seatRequest));
     }
 
+    // ==================== US05 - Control automático de asientos ====================
+
+    // US05 - Escenario alternativo: el pasajero cancela su reserva y el asiento se libera solo
+    @Transactional
+    public SeatRequestResponseDTO cancelByPassenger(Long requestId, CancelRequestDTO dto) {
+        User passenger = currentUser.get();
+        SeatRequest seatRequest = findRequest(requestId);
+
+        // Control por PROPIEDAD: solo el pasajero que hizo la solicitud puede cancelarla
+        if (!seatRequest.getPassenger().getId().equals(passenger.getId())) {
+            throw new AccessDeniedException("Solo el pasajero que hizo la solicitud puede cancelarla");
+        }
+
+        if (seatRequest.getStatus() != RequestStatus.PENDING
+                && seatRequest.getStatus() != RequestStatus.ACCEPTED) {
+            throw new ConflictException("Esta solicitud ya no se puede cancelar (estado: "
+                    + seatRequest.getStatus() + ")");
+        }
+
+        Trip trip = findTripForUpdate(seatRequest.getTrip().getId());
+
+        // Si el asiento ya estaba reservado, se libera automáticamente
+        if (seatRequest.getStatus() == RequestStatus.ACCEPTED) {
+            trip.setAvailableSeats(trip.getAvailableSeats() + 1);
+            if (trip.getStatus() == TripStatus.FULL) {
+                trip.setStatus(TripStatus.SCHEDULED);   // vuelve a aparecer en los viajes activos
+            }
+            tripRepository.save(trip);
+        }
+
+        seatRequest.setStatus(RequestStatus.CANCELLED);
+        seatRequest.setCancelReason(dto.reason().trim());
+        return seatRequestMapper.toResponse(seatRequestRepository.save(seatRequest));
+    }
+
     // ==================== Métodos de apoyo ====================
 
     private Trip findTrip(Long tripId) {
         return tripRepository.findById(tripId)
+                .orElseThrow(() -> new ResourceNotFoundException("Viaje no encontrado"));
+    }
+
+    private Trip findTripForUpdate(Long tripId) {
+        return tripRepository.findByIdForUpdate(tripId)
                 .orElseThrow(() -> new ResourceNotFoundException("Viaje no encontrado"));
     }
 
