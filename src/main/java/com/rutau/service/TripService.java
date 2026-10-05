@@ -1,5 +1,6 @@
 package com.rutau.service;
 
+import com.rutau.dto.request.CancelRequestDTO;
 import com.rutau.dto.request.CompleteTripRequestDTO;
 import com.rutau.dto.request.TripRequestDTO;
 import com.rutau.dto.response.SeatRequestResponseDTO;
@@ -10,6 +11,7 @@ import com.rutau.exception.ConflictException;
 import com.rutau.exception.ResourceNotFoundException;
 import com.rutau.mapper.SeatRequestMapper;
 import com.rutau.mapper.TripMapper;
+import com.rutau.model.NotificationType;
 import com.rutau.model.RequestStatus;
 import com.rutau.model.SeatRequest;
 import com.rutau.model.Trip;
@@ -26,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,11 +36,14 @@ import java.util.List;
 @RequiredArgsConstructor
 public class TripService {
 
+    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+
     private final TripRepository tripRepository;
     private final VehicleRepository vehicleRepository;
     private final TripMapper tripMapper;
     private final SeatRequestRepository seatRequestRepository;
     private final SeatRequestMapper seatRequestMapper;
+    private final NotificationService notificationService;
     private final CurrentUser currentUser;
 
     // US02 - Publicar un viaje como conductor
@@ -169,6 +175,42 @@ public class TripService {
         return new TripCompletionResponseDTO(trip.getId(), trip.getStatus(),
                 "Viaje marcado como realizado. Calificación habilitada para el conductor y los pasajeros que completaron el viaje.",
                 passengers);
+    }
+
+    // ==================== US08 - Cancelar un viaje ya confirmado (conductor) ====================
+
+    @Transactional
+    public TripResponseDTO cancel(Long tripId, CancelRequestDTO dto) {
+        User driver = currentUser.get();
+        Trip trip = findTripForUpdate(tripId);
+        checkIsDriver(trip, driver, "Solo el conductor del viaje puede cancelarlo");
+
+        // US08 - Escenario de error: un viaje realizado ya no se puede cancelar
+        if (trip.getStatus() == TripStatus.COMPLETED) {
+            throw new ConflictException("Este viaje ya fue completado");
+        }
+        if (trip.getStatus() == TripStatus.CANCELLED) {
+            throw new ConflictException("Este viaje ya fue cancelado");
+        }
+
+        String reason = dto.reason().trim();
+
+        // Todas las solicitudes activas se cancelan y se avisa a cada pasajero
+        List<SeatRequest> requests = seatRequestRepository.findByTripIdAndStatusIn(
+                tripId, List.of(RequestStatus.ACCEPTED, RequestStatus.PENDING));
+        for (SeatRequest request : requests) {
+            request.setStatus(RequestStatus.CANCELLED);
+            request.setCancelReason("Viaje cancelado por el conductor: " + reason);
+            notificationService.notify(request.getPassenger(), NotificationType.TRIP_CANCELLED,
+                    "El viaje " + trip.getOrigin() + " → " + trip.getDestination() + " del "
+                            + trip.getDepartureTime().format(DATE_FORMAT)
+                            + " fue cancelado por el conductor. Motivo: " + reason);
+        }
+        seatRequestRepository.saveAll(requests);
+
+        // US08 - Escenario exitoso: el viaje pasa a "Cancelado"
+        trip.setStatus(TripStatus.CANCELLED);
+        return tripMapper.toResponse(tripRepository.save(trip));
     }
 
     // ==================== Métodos de apoyo ====================
