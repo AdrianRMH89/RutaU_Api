@@ -10,6 +10,7 @@ public record SeatRequestResponseDTO(
         String origin,
         String destination,
         LocalDateTime departureTime,
+        Integer tripAvailableSeats,
         Long passengerId,
         String passengerName,
         RequestStatus status,

@@ -15,6 +15,7 @@ import com.rutau.repository.SeatRequestRepository;
 import com.rutau.repository.TripRepository;
 import com.rutau.security.CurrentUser;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,13 +33,13 @@ public class SeatRequestService {
     private final SeatRequestMapper seatRequestMapper;
     private final CurrentUser currentUser;
 
-    // US03 - Solicitar un asiento en un viaje
+    // ==================== US03 - Solicitar un asiento ====================
+
     @Transactional
     public SeatRequestResponseDTO request(SeatRequestCreateDTO dto) {
         User passenger = currentUser.get();
 
-        Trip trip = tripRepository.findById(dto.tripId())
-                .orElseThrow(() -> new ResourceNotFoundException("Viaje no encontrado"));
+        Trip trip = findTrip(dto.tripId());
 
         if (trip.getDriver().getId().equals(passenger.getId())) {
             throw new BusinessRuleException("No puedes solicitar un asiento en tu propio viaje");
@@ -78,12 +79,87 @@ public class SeatRequestService {
         return seatRequestMapper.toResponse(seatRequestRepository.save(seatRequest));
     }
 
-    // Solicitudes que hizo el usuario logueado como pasajero
     @Transactional(readOnly = true)
     public List<SeatRequestResponseDTO> getMyRequests() {
         User passenger = currentUser.get();
         return seatRequestRepository.findByPassengerId(passenger.getId()).stream()
                 .map(seatRequestMapper::toResponse)
                 .toList();
+    }
+
+    // ==================== US04 - Aceptar o rechazar una solicitud ====================
+
+    // El conductor ve las solicitudes que recibió en uno de sus viajes
+    @Transactional(readOnly = true)
+    public List<SeatRequestResponseDTO> getRequestsForMyTrip(Long tripId) {
+        User driver = currentUser.get();
+        Trip trip = findTrip(tripId);
+        checkIsDriver(trip, driver);
+
+        return seatRequestRepository.findByTripId(tripId).stream()
+                .map(seatRequestMapper::toResponse)
+                .toList();
+    }
+
+    // US04 - Escenario exitoso y de error
+    @Transactional
+    public SeatRequestResponseDTO accept(Long requestId) {
+        User driver = currentUser.get();
+        SeatRequest seatRequest = findRequest(requestId);
+        Trip trip = seatRequest.getTrip();
+
+        checkIsDriver(trip, driver);
+        checkIsPending(seatRequest);
+
+        // US04 - Escenario de error: el viaje ya está completo
+        if (trip.getAvailableSeats() <= 0) {
+            throw new ConflictException("Ya no hay asientos disponibles para aceptar esta solicitud");
+        }
+
+        // US04 - Escenario exitoso: se reserva el asiento y se descuenta
+        trip.setAvailableSeats(trip.getAvailableSeats() - 1);
+        seatRequest.setStatus(RequestStatus.ACCEPTED);
+
+        tripRepository.save(trip);
+        return seatRequestMapper.toResponse(seatRequestRepository.save(seatRequest));
+    }
+
+    // US04 - Escenario alternativo: rechazar (el asiento sigue disponible)
+    @Transactional
+    public SeatRequestResponseDTO reject(Long requestId) {
+        User driver = currentUser.get();
+        SeatRequest seatRequest = findRequest(requestId);
+
+        checkIsDriver(seatRequest.getTrip(), driver);
+        checkIsPending(seatRequest);
+
+        seatRequest.setStatus(RequestStatus.REJECTED);
+        return seatRequestMapper.toResponse(seatRequestRepository.save(seatRequest));
+    }
+
+    // ==================== Métodos de apoyo ====================
+
+    private Trip findTrip(Long tripId) {
+        return tripRepository.findById(tripId)
+                .orElseThrow(() -> new ResourceNotFoundException("Viaje no encontrado"));
+    }
+
+    private SeatRequest findRequest(Long requestId) {
+        return seatRequestRepository.findById(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Solicitud no encontrada"));
+    }
+
+    // Control por PROPIEDAD: solo el conductor del viaje puede gestionar sus solicitudes (403)
+    private void checkIsDriver(Trip trip, User user) {
+        if (!trip.getDriver().getId().equals(user.getId())) {
+            throw new AccessDeniedException("Solo el conductor del viaje puede gestionar sus solicitudes");
+        }
+    }
+
+    private void checkIsPending(SeatRequest seatRequest) {
+        if (seatRequest.getStatus() != RequestStatus.PENDING) {
+            throw new ConflictException("Esta solicitud ya fue procesada (estado: "
+                    + seatRequest.getStatus() + ")");
+        }
     }
 }

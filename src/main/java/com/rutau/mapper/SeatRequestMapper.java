@@ -12,6 +12,7 @@ public interface SeatRequestMapper {
     @Mapping(source = "trip.origin", target = "origin")
     @Mapping(source = "trip.destination", target = "destination")
     @Mapping(source = "trip.departureTime", target = "departureTime")
+    @Mapping(source = "trip.availableSeats", target = "tripAvailableSeats")
     @Mapping(source = "passenger.id", target = "passengerId")
     @Mapping(source = "passenger.fullName", target = "passengerName")
     SeatRequestResponseDTO toResponse(SeatRequest seatRequest);
