@@ -16,6 +16,9 @@ public interface TripRepository extends JpaRepository<Trip, Long> {
 
     List<Trip> findByDriverId(Long driverId);
 
+    // US10 - Cantidad de viajes realizados por un conductor
+    long countByDriverIdAndStatus(Long driverId, TripStatus status);
+
     // US05 - Viajes activos: con asientos libres y que aún no han salido
     List<Trip> findByStatusAndDepartureTimeAfterOrderByDepartureTimeAsc(TripStatus status,
                                                                         LocalDateTime now);
