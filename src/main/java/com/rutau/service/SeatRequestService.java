@@ -12,9 +12,11 @@ import com.rutau.model.RequestStatus;
 import com.rutau.model.SeatRequest;
 import com.rutau.model.Trip;
 import com.rutau.model.TripStatus;
+import com.rutau.model.TripStop;
 import com.rutau.model.User;
 import com.rutau.repository.SeatRequestRepository;
 import com.rutau.repository.TripRepository;
+import com.rutau.repository.TripStopRepository;
 import com.rutau.security.CurrentUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
@@ -35,6 +37,7 @@ public class SeatRequestService {
 
     private final SeatRequestRepository seatRequestRepository;
     private final TripRepository tripRepository;
+    private final TripStopRepository tripStopRepository;
     private final SeatRequestMapper seatRequestMapper;
     private final CurrentUser currentUser;
     private final NotificationService notificationService;
@@ -80,6 +83,17 @@ public class SeatRequestService {
         SeatRequest seatRequest = new SeatRequest();
         seatRequest.setTrip(trip);
         seatRequest.setPassenger(passenger);
+
+        // US11 - Escenario exitoso: el pasajero indica un punto intermedio de recojo o bajada.
+        // Escenario alternativo: si no lo indica, queda null y se usa el origen del conductor.
+        if (dto.pickupStopId() != null) {
+            TripStop stop = tripStopRepository.findById(dto.pickupStopId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Punto intermedio no encontrado"));
+            if (!stop.getTrip().getId().equals(trip.getId())) {
+                throw new BusinessRuleException("El punto intermedio indicado no pertenece a este viaje");
+            }
+            seatRequest.setPickupStop(stop);
+        }
         seatRequest.setStatus(RequestStatus.PENDING);   // "Pendiente de confirmación"
 
         return seatRequestMapper.toResponse(seatRequestRepository.save(seatRequest));

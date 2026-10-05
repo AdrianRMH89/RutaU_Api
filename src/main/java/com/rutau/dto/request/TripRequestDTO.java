@@ -1,5 +1,6 @@
 package com.rutau.dto.request;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.Min;
@@ -9,6 +10,7 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record TripRequestDTO(
 
@@ -35,5 +37,9 @@ public record TripRequestDTO(
 
         @NotNull(message = "Debes indicar el precio por asiento")
         @DecimalMin(value = "0.0", message = "El precio no puede ser negativo")
-        BigDecimal pricePerSeat
+        BigDecimal pricePerSeat,
+
+        // US11 - Opcional: puntos intermedios de recojo o bajada (en el orden de la ruta)
+        @Size(max = 5, message = "Puedes agregar como máximo 5 puntos intermedios")
+        List<@Valid TripStopRequestDTO> stops
 ) {}
