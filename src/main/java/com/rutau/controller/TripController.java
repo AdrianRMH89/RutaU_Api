@@ -1,5 +1,6 @@
 package com.rutau.controller;
 
+import com.rutau.dto.request.CancelRequestDTO;
 import com.rutau.dto.request.CompleteTripRequestDTO;
 import com.rutau.dto.request.TripRequestDTO;
 import com.rutau.dto.response.TripCompletionResponseDTO;
@@ -53,5 +54,11 @@ public class TripController {
     public TripCompletionResponseDTO complete(@PathVariable Long id,
                                               @RequestBody(required = false) CompleteTripRequestDTO dto) {
         return tripService.complete(id, dto);
+    }
+
+    // US08 - El conductor cancela un viaje (se notifica a los pasajeros)
+    @PatchMapping("/{id}/cancel")
+    public TripResponseDTO cancel(@PathVariable Long id, @Valid @RequestBody CancelRequestDTO dto) {
+        return tripService.cancel(id, dto);
     }
 }

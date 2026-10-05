@@ -7,6 +7,7 @@ import com.rutau.exception.BusinessRuleException;
 import com.rutau.exception.ConflictException;
 import com.rutau.exception.ResourceNotFoundException;
 import com.rutau.mapper.SeatRequestMapper;
+import com.rutau.model.NotificationType;
 import com.rutau.model.RequestStatus;
 import com.rutau.model.SeatRequest;
 import com.rutau.model.Trip;
@@ -20,6 +21,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
@@ -29,10 +31,13 @@ public class SeatRequestService {
     // Dos viajes "se cruzan" si salen con 60 minutos o menos de diferencia
     private static final long OVERLAP_MINUTES = 60;
 
+    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+
     private final SeatRequestRepository seatRequestRepository;
     private final TripRepository tripRepository;
     private final SeatRequestMapper seatRequestMapper;
     private final CurrentUser currentUser;
+    private final NotificationService notificationService;
 
     // ==================== US03 - Solicitar un asiento ====================
 
@@ -147,9 +152,10 @@ public class SeatRequestService {
         return seatRequestMapper.toResponse(seatRequestRepository.save(seatRequest));
     }
 
-    // ==================== US05 - Control automático de asientos ====================
+    // ==================== US05 / US08 - Cancelación por parte del pasajero ====================
 
     // US05 - Escenario alternativo: el pasajero cancela su reserva y el asiento se libera solo
+    // US08 - Escenario alternativo: el viaje sigue activo para los demás pasajeros
     @Transactional
     public SeatRequestResponseDTO cancelByPassenger(Long requestId, CancelRequestDTO dto) {
         User passenger = currentUser.get();
@@ -158,6 +164,11 @@ public class SeatRequestService {
         // Control por PROPIEDAD: solo el pasajero que hizo la solicitud puede cancelarla
         if (!seatRequest.getPassenger().getId().equals(passenger.getId())) {
             throw new AccessDeniedException("Solo el pasajero que hizo la solicitud puede cancelarla");
+        }
+
+        // US08 - Escenario de error: no se puede cancelar un viaje ya realizado
+        if (seatRequest.getTrip().getStatus() == TripStatus.COMPLETED) {
+            throw new ConflictException("Este viaje ya fue completado");
         }
 
         if (seatRequest.getStatus() != RequestStatus.PENDING
@@ -179,10 +190,21 @@ public class SeatRequestService {
 
         seatRequest.setStatus(RequestStatus.CANCELLED);
         seatRequest.setCancelReason(dto.reason().trim());
+
+        // US08 - Se notifica a la otra parte (el conductor)
+        notificationService.notify(trip.getDriver(), NotificationType.REQUEST_CANCELLED,
+                passenger.getFullName() + " canceló su asiento en tu viaje " + describe(trip)
+                        + ". Motivo: " + dto.reason().trim());
+
         return seatRequestMapper.toResponse(seatRequestRepository.save(seatRequest));
     }
 
     // ==================== Métodos de apoyo ====================
+
+    private String describe(Trip trip) {
+        return trip.getOrigin() + " → " + trip.getDestination()
+                + " del " + trip.getDepartureTime().format(DATE_FORMAT);
+    }
 
     private Trip findTrip(Long tripId) {
         return tripRepository.findById(tripId)
