@@ -25,4 +25,7 @@ public interface SeatRequestRepository extends JpaRepository<SeatRequest, Long> 
 
     // US07 / US08 - Solicitudes de un viaje que están en ciertos estados (ej. PENDING y ACCEPTED)
     List<SeatRequest> findByTripIdAndStatusIn(Long tripId, Collection<RequestStatus> statuses);
+
+    // US09 - ¿El pasajero completó este viaje? (requisito para calificar o ser calificado)
+    boolean existsByTripIdAndPassengerIdAndStatus(Long tripId, Long passengerId, RequestStatus status);
 }
