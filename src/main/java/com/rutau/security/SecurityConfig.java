@@ -1,5 +1,6 @@
 package com.rutau.security;
 
+import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -46,6 +47,10 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()   // registro y login: públicos
+                        // La página interna de errores debe ser pública; si no, cualquier error
+                        // termina mostrándose como un 401 "Token ausente o inválido"
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+                        .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated())                 // todo lo demás: con token
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(restAuthEntryPoint)

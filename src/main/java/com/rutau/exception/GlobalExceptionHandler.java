@@ -1,9 +1,12 @@
 package com.rutau.exception;
 
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.ServletRequestBindingException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import com.rutau.dto.response.ApiErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +22,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -119,8 +123,26 @@ public class GlobalExceptionHandler {
     }
 
     // 500 - cualquier otro error no previsto
+    // 415 - el body no se envió como JSON (ej. Content-Type: text/plain)
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ApiErrorResponse> handleMediaType(HttpMediaTypeNotSupportedException ex,
+                                                            HttpServletRequest req) {
+        return build(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Unsupported Media Type",
+                "El cuerpo de la petición debe enviarse como JSON (Content-Type: application/json)", req);
+    }
+
+    // 400 - falta un parámetro obligatorio de la URL o de la petición
+    @ExceptionHandler(ServletRequestBindingException.class)
+    public ResponseEntity<ApiErrorResponse> handleBinding(ServletRequestBindingException ex,
+                                                          HttpServletRequest req) {
+        return build(HttpStatus.BAD_REQUEST, "Bad Request",
+                "Falta un parámetro obligatorio en la petición", req);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleGeneric(Exception ex, HttpServletRequest req) {
+        // Se registra el error real en la consola para poder diagnosticarlo
+        log.error("Error no controlado en {} {}", req.getMethod(), req.getRequestURI(), ex);
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error",
                 "Ocurrió un error inesperado", req);
     }
