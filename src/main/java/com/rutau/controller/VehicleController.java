@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -29,5 +30,11 @@ public class VehicleController {
     @GetMapping("/me")
     public VehicleResponseDTO myVehicle() {
         return vehicleService.getMyVehicle();
+    }
+
+    // US06 - Actualizar los datos (y la capacidad) de mi vehículo
+    @PutMapping("/me")
+    public VehicleResponseDTO updateMyVehicle(@Valid @RequestBody VehicleRequestDTO dto) {
+        return vehicleService.updateMyVehicle(dto);
     }
 }
