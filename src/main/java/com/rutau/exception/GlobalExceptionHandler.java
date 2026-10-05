@@ -1,11 +1,16 @@
 package com.rutau.exception;
 
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import com.rutau.dto.response.ApiErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -65,6 +70,43 @@ public class GlobalExceptionHandler {
         ApiErrorResponse body = ApiErrorResponse.of(400, "Bad Request",
                 "Error de validación", req.getRequestURI(), fieldErrors);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    // NUEVO: 401 - correo o contraseña incorrectos (escenario de error de la US01)
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ApiErrorResponse> handleBadCredentials(BadCredentialsException ex,
+                                                                 HttpServletRequest req) {
+        return build(HttpStatus.UNAUTHORIZED, "Unauthorized", "Correo o contraseña incorrectos", req);
+    }
+
+    // NUEVO: 403 - cuenta deshabilitada (ej. suspendida por moderación, US19)
+    @ExceptionHandler(DisabledException.class)
+    public ResponseEntity<ApiErrorResponse> handleDisabled(DisabledException ex,
+                                                           HttpServletRequest req) {
+        return build(HttpStatus.FORBIDDEN, "Forbidden", "Tu cuenta está suspendida o deshabilitada", req);
+    }
+
+    // NUEVO: 403 - el usuario no tiene permiso (rol o dueño del recurso)
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiErrorResponse> handleAccessDenied(AccessDeniedException ex,
+                                                               HttpServletRequest req) {
+        return build(HttpStatus.FORBIDDEN, "Forbidden",
+                ex.getMessage() != null ? ex.getMessage() : "Acceso denegado", req);
+    }
+
+    // 405 - se usó un método HTTP que el endpoint no acepta (ej. GET en vez de POST)
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiErrorResponse> handleMethodNotAllowed(HttpRequestMethodNotSupportedException ex,
+                                                                   HttpServletRequest req) {
+        return build(HttpStatus.METHOD_NOT_ALLOWED, "Method Not Allowed",
+                "El método " + ex.getMethod() + " no está permitido para esta ruta", req);
+    }
+
+    // 404 - la URL no existe
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleNoResource(NoResourceFoundException ex,
+                                                             HttpServletRequest req) {
+        return build(HttpStatus.NOT_FOUND, "Not Found", "La ruta solicitada no existe", req);
     }
 
     // 500 - cualquier otro error no previsto
