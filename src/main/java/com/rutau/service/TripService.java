@@ -3,25 +3,31 @@ package com.rutau.service;
 import com.rutau.dto.request.CancelRequestDTO;
 import com.rutau.dto.request.CompleteTripRequestDTO;
 import com.rutau.dto.request.TripRequestDTO;
+import com.rutau.dto.request.TripStopRequestDTO;
 import com.rutau.dto.response.SeatRequestResponseDTO;
 import com.rutau.dto.response.TripCompletionResponseDTO;
 import com.rutau.dto.response.TripResponseDTO;
+import com.rutau.dto.response.TripStopResponseDTO;
 import com.rutau.exception.BusinessRuleException;
 import com.rutau.exception.ConflictException;
 import com.rutau.exception.ResourceNotFoundException;
 import com.rutau.mapper.SeatRequestMapper;
 import com.rutau.mapper.TripMapper;
+import com.rutau.mapper.TripStopMapper;
 import com.rutau.model.NotificationType;
 import com.rutau.model.RequestStatus;
 import com.rutau.model.SeatRequest;
 import com.rutau.model.Trip;
 import com.rutau.model.TripStatus;
+import com.rutau.model.TripStop;
 import com.rutau.model.User;
 import com.rutau.model.Vehicle;
 import com.rutau.repository.SeatRequestRepository;
 import com.rutau.repository.TripRepository;
+import com.rutau.repository.TripStopRepository;
 import com.rutau.repository.VehicleRepository;
 import com.rutau.security.CurrentUser;
+import com.rutau.util.LimaZones;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -41,6 +47,8 @@ public class TripService {
     private final TripRepository tripRepository;
     private final VehicleRepository vehicleRepository;
     private final TripMapper tripMapper;
+    private final TripStopRepository tripStopRepository;
+    private final TripStopMapper tripStopMapper;
     private final SeatRequestRepository seatRequestRepository;
     private final SeatRequestMapper seatRequestMapper;
     private final NotificationService notificationService;
@@ -81,7 +89,35 @@ public class TripService {
         trip.setPricePerSeat(dto.pricePerSeat());
         trip.setStatus(TripStatus.SCHEDULED);
 
+        // US11 - Puntos intermedios: cada uno debe estar dentro de la ruta del viaje
+        if (dto.stops() != null) {
+            int order = 1;
+            for (TripStopRequestDTO stopDto : dto.stops()) {
+                if (!LimaZones.isOnRoute(trip.getZone(), stopDto.zone())) {
+                    // US11 - Escenario de error
+                    throw new BusinessRuleException("El punto ingresado no coincide con la ruta del viaje");
+                }
+                TripStop stop = new TripStop();
+                stop.setTrip(trip);
+                stop.setAddress(stopDto.address().trim());
+                stop.setZone(stopDto.zone().trim());
+                stop.setStopOrder(order++);
+                trip.getStops().add(stop);
+            }
+        }
+
         return tripMapper.toResponse(tripRepository.save(trip));
+    }
+
+    // US11 - Puntos intermedios de un viaje (para que el pasajero elija dónde subir o bajar)
+    @Transactional(readOnly = true)
+    public List<TripStopResponseDTO> getStops(Long tripId) {
+        if (!tripRepository.existsById(tripId)) {
+            throw new ResourceNotFoundException("Viaje no encontrado");
+        }
+        return tripStopRepository.findByTripIdOrderByStopOrderAsc(tripId).stream()
+                .map(tripStopMapper::toResponse)
+                .toList();
     }
 
     @Transactional(readOnly = true)

@@ -4,6 +4,7 @@ import com.rutau.model.TripStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record TripResponseDTO(
         Long id,
@@ -19,5 +20,6 @@ public record TripResponseDTO(
         Integer totalSeats,
         Integer availableSeats,
         BigDecimal pricePerSeat,
-        TripStatus status
+        TripStatus status,
+        List<TripStopResponseDTO> stops     // US11
 ) {}

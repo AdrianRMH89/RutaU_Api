@@ -5,6 +5,7 @@ import com.rutau.dto.request.CompleteTripRequestDTO;
 import com.rutau.dto.request.TripRequestDTO;
 import com.rutau.dto.response.TripCompletionResponseDTO;
 import com.rutau.dto.response.TripResponseDTO;
+import com.rutau.dto.response.TripStopResponseDTO;
 import com.rutau.service.TripService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +48,12 @@ public class TripController {
     @GetMapping("/{id}")
     public TripResponseDTO getById(@PathVariable Long id) {
         return tripService.getById(id);
+    }
+
+    // US11 - Puntos intermedios de recojo o bajada de un viaje
+    @GetMapping("/{id}/stops")
+    public List<TripStopResponseDTO> stops(@PathVariable Long id) {
+        return tripService.getStops(id);
     }
 
     // US07 - Marcar un viaje como realizado (conductor). El body es opcional.
