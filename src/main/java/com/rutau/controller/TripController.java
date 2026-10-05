@@ -1,12 +1,15 @@
 package com.rutau.controller;
 
+import com.rutau.dto.request.CompleteTripRequestDTO;
 import com.rutau.dto.request.TripRequestDTO;
+import com.rutau.dto.response.TripCompletionResponseDTO;
 import com.rutau.dto.response.TripResponseDTO;
 import com.rutau.service.TripService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -43,5 +46,12 @@ public class TripController {
     @GetMapping("/{id}")
     public TripResponseDTO getById(@PathVariable Long id) {
         return tripService.getById(id);
+    }
+
+    // US07 - Marcar un viaje como realizado (conductor). El body es opcional.
+    @PatchMapping("/{id}/complete")
+    public TripCompletionResponseDTO complete(@PathVariable Long id,
+                                              @RequestBody(required = false) CompleteTripRequestDTO dto) {
+        return tripService.complete(id, dto);
     }
 }
