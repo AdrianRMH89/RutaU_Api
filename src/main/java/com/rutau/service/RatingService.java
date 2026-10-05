@@ -1,6 +1,7 @@
 package com.rutau.service;
 
 import com.rutau.dto.request.RatingRequestDTO;
+import com.rutau.dto.response.RatingHistoryResponseDTO;
 import com.rutau.dto.response.RatingResponseDTO;
 import com.rutau.exception.BusinessRuleException;
 import com.rutau.exception.ConflictException;
@@ -21,6 +22,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -98,5 +101,37 @@ public class RatingService {
     private boolean completedTrip(Trip trip, User user) {
         return seatRequestRepository.existsByTripIdAndPassengerIdAndStatus(
                 trip.getId(), user.getId(), RequestStatus.COMPLETED);
+    }
+
+    // ==================== US16 - Consultar historial de calificaciones ====================
+
+    // role es opcional: DRIVER (como conductor), PASSENGER (como pasajero) o null (todas)
+    @Transactional(readOnly = true)
+    public RatingHistoryResponseDTO getMyRatings(RatedRole role) {
+        User user = currentUser.get();
+
+        // US16 - Escenario alternativo: filtrar por rol
+        List<Rating> ratings = role == null
+                ? ratingRepository.findByRatedIdOrderByCreatedAtDesc(user.getId())
+                : ratingRepository.findByRatedIdAndRatedRoleOrderByCreatedAtDesc(user.getId(), role);
+
+        String roleLabel = role == null ? "Todos los roles" : role.name();
+
+        if (ratings.isEmpty()) {
+            // US16 - Escenario de error
+            String message = role == null
+                    ? "Aún no has recibido calificaciones"
+                    : "Aún no has recibido calificaciones como "
+                      + (role == RatedRole.DRIVER ? "conductor" : "pasajero");
+            return new RatingHistoryResponseDTO(message, roleLabel, 0L, null, List.of());
+        }
+
+        double average = ratings.stream().mapToInt(Rating::getScore).average().orElse(0);
+        double rounded = Math.round(average * 10) / 10.0;
+
+        // US16 - Escenario exitoso: fecha, puntaje y comentario de cada calificación
+        return new RatingHistoryResponseDTO("Calificaciones recibidas", roleLabel,
+                (long) ratings.size(), rounded,
+                ratings.stream().map(ratingMapper::toResponse).toList());
     }
 }

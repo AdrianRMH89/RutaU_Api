@@ -12,6 +12,11 @@ public interface RatingRepository extends JpaRepository<Rating, Long> {
 
     List<Rating> findByRatedId(Long ratedId);
 
+    // US16 - Calificaciones recibidas (todas o solo de un rol), las más recientes primero
+    List<Rating> findByRatedIdOrderByCreatedAtDesc(Long ratedId);
+
+    List<Rating> findByRatedIdAndRatedRoleOrderByCreatedAtDesc(Long ratedId, RatedRole ratedRole);
+
     boolean existsByTripIdAndRaterIdAndRatedId(Long tripId, Long raterId, Long ratedId);
 
     // US10 - Promedio de estrellas que recibió un usuario en un rol (null si no tiene calificaciones)
