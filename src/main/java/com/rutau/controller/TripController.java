@@ -29,6 +29,12 @@ public class TripController {
         return tripService.publish(dto);
     }
 
+    // US05 - Viajes activos (los viajes completos no aparecen)
+    @GetMapping
+    public List<TripResponseDTO> activeTrips() {
+        return tripService.getActiveTrips();
+    }
+
     @GetMapping("/me")
     public List<TripResponseDTO> myTrips() {
         return tripService.getMyTrips();

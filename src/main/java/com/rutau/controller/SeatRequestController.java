@@ -1,5 +1,6 @@
 package com.rutau.controller;
 
+import com.rutau.dto.request.CancelRequestDTO;
 import com.rutau.dto.request.SeatRequestCreateDTO;
 import com.rutau.dto.response.SeatRequestResponseDTO;
 import com.rutau.service.SeatRequestService;
@@ -53,5 +54,12 @@ public class SeatRequestController {
     @PatchMapping("/{id}/reject")
     public SeatRequestResponseDTO reject(@PathVariable Long id) {
         return seatRequestService.reject(id);
+    }
+
+    // US05 - El pasajero cancela su solicitud o reserva (libera el asiento si estaba aceptada)
+    @PatchMapping("/{id}/cancel")
+    public SeatRequestResponseDTO cancel(@PathVariable Long id,
+                                         @Valid @RequestBody CancelRequestDTO dto) {
+        return seatRequestService.cancelByPassenger(id, dto);
     }
 }

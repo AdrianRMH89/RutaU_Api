@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -70,6 +71,16 @@ public class TripService {
     public List<TripResponseDTO> getMyTrips() {
         User driver = currentUser.get();
         return tripRepository.findByDriverId(driver.getId()).stream()
+                .map(tripMapper::toResponse)
+                .toList();
+    }
+
+    // US05 - Viajes activos: solo los que tienen asientos libres (SCHEDULED) y aún no salen.
+    // Un viaje FULL deja de mostrarse aquí.
+    @Transactional(readOnly = true)
+    public List<TripResponseDTO> getActiveTrips() {
+        return tripRepository.findByStatusAndDepartureTimeAfterOrderByDepartureTimeAsc(
+                        TripStatus.SCHEDULED, LocalDateTime.now()).stream()
                 .map(tripMapper::toResponse)
                 .toList();
     }
