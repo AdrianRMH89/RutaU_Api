@@ -1,5 +1,7 @@
 package com.rutau.exception;
 
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import com.rutau.dto.response.ApiErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -90,6 +92,21 @@ public class GlobalExceptionHandler {
                                                                HttpServletRequest req) {
         return build(HttpStatus.FORBIDDEN, "Forbidden",
                 ex.getMessage() != null ? ex.getMessage() : "Acceso denegado", req);
+    }
+
+    // 405 - se usó un método HTTP que el endpoint no acepta (ej. GET en vez de POST)
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiErrorResponse> handleMethodNotAllowed(HttpRequestMethodNotSupportedException ex,
+                                                                   HttpServletRequest req) {
+        return build(HttpStatus.METHOD_NOT_ALLOWED, "Method Not Allowed",
+                "El método " + ex.getMethod() + " no está permitido para esta ruta", req);
+    }
+
+    // 404 - la URL no existe
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleNoResource(NoResourceFoundException ex,
+                                                             HttpServletRequest req) {
+        return build(HttpStatus.NOT_FOUND, "Not Found", "La ruta solicitada no existe", req);
     }
 
     // 500 - cualquier otro error no previsto
