@@ -52,4 +52,25 @@ public class VehicleService {
                 .map(vehicleMapper::toResponse)
                 .orElseThrow(() -> new ResourceNotFoundException("Aún no has registrado tu vehículo"));
     }
+
+    // US06 - El conductor actualiza los datos de su vehículo (por ejemplo, la capacidad)
+    @Transactional
+    public VehicleResponseDTO updateMyVehicle(VehicleRequestDTO dto) {
+        User owner = currentUser.get();
+        Vehicle vehicle = vehicleRepository.findByOwnerId(owner.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Aún no has registrado tu vehículo"));
+
+        String plate = dto.plate().trim().toUpperCase();
+        if (!plate.equals(vehicle.getPlate()) && vehicleRepository.existsByPlate(plate)) {
+            throw new ConflictException("Ya existe un vehículo registrado con la placa " + plate);
+        }
+
+        vehicle.setBrand(dto.brand().trim());
+        vehicle.setModel(dto.model().trim());
+        vehicle.setColor(dto.color());
+        vehicle.setPlate(plate);
+        vehicle.setCapacity(dto.capacity());
+
+        return vehicleMapper.toResponse(vehicleRepository.save(vehicle));
+    }
 }
