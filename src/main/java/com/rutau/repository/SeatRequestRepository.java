@@ -23,6 +23,9 @@ public interface SeatRequestRepository extends JpaRepository<SeatRequest, Long> 
             + "GROUP BY EXTRACT(HOUR FROM s.trip.departureTime)")
     List<Object[]> countDemandByHour(@Param("zone") String zone);
 
+    // US17 - Solicitudes de viajes que salen dentro de un rango de fechas (demanda del período)
+    List<SeatRequest> findByTripDepartureTimeBetween(LocalDateTime start, LocalDateTime end);
+
     boolean existsByTripIdAndPassengerId(Long tripId, Long passengerId);
 
     // US03 - ¿El pasajero tiene otra solicitud activa en un viaje que sale entre "start" y "end"?
