@@ -1,0 +1,46 @@
+# ============================================================
+# RutaU - API + base de datos PostgreSQL con un solo comando:
+#     docker compose up --build
+# API:     http://localhost:8081
+# Swagger: http://localhost:8081/swagger-ui.html
+# ============================================================
+services:
+
+  db:
+    image: postgres:16
+    container_name: rutau-db
+    environment:
+      POSTGRES_DB: RutaU_DB
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-rutau1234}
+    ports:
+      # 5433 en tu PC para no chocar con el PostgreSQL que ya tienes instalado (5432)
+      - "5433:5432"
+    volumes:
+      - rutau-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d RutaU_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    container_name: rutau-api
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Dentro de Docker la base de datos se llama "db" (el nombre del servicio)
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/RutaU_DB
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-rutau1234}
+      SPRING_JPA_SHOW_SQL: "false"
+      JWT_SECRET: ${JWT_SECRET:-rutau-clave-secreta-de-docker-cambiar-en-produccion-2026}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@rutau.edu.pe}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin12345}
+    ports:
+      - "8081:8081"
+
+volumes:
+  rutau-data:
