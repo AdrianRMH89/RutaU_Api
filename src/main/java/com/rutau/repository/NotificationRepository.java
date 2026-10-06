@@ -8,4 +8,7 @@ import java.util.List;
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
     List<Notification> findByUserIdOrderByCreatedAtDesc(Long userId);
+
+    // US20 - Notificaciones sin leer
+    long countByUserIdAndReadFalse(Long userId);
 }

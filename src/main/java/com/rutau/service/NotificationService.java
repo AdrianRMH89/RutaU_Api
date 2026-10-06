@@ -1,6 +1,7 @@
 package com.rutau.service;
 
 import com.rutau.dto.response.NotificationResponseDTO;
+import com.rutau.exception.ResourceNotFoundException;
 import com.rutau.mapper.NotificationMapper;
 import com.rutau.model.Notification;
 import com.rutau.model.NotificationType;
@@ -8,6 +9,7 @@ import com.rutau.model.User;
 import com.rutau.repository.NotificationRepository;
 import com.rutau.security.CurrentUser;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +35,25 @@ public class NotificationService {
                 ? message.substring(0, MAX_MESSAGE_LENGTH - 3) + "..."
                 : message);
         notificationRepository.save(notification);
+    }
+
+    // US20 - Marcar una notificación como leída (solo su dueño)
+    @Transactional
+    public NotificationResponseDTO markAsRead(Long id) {
+        User user = currentUser.get();
+        Notification notification = notificationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Notificación no encontrada"));
+        if (!notification.getUser().getId().equals(user.getId())) {
+            throw new AccessDeniedException("Solo puedes marcar tus propias notificaciones");
+        }
+        notification.setRead(true);
+        return notificationMapper.toResponse(notificationRepository.save(notification));
+    }
+
+    // US20 - Cantidad de notificaciones sin leer (para el contador de la app)
+    @Transactional(readOnly = true)
+    public long countUnread() {
+        return notificationRepository.countByUserIdAndReadFalse(currentUser.get().getId());
     }
 
     // Notificaciones del usuario logueado, de la más reciente a la más antigua
