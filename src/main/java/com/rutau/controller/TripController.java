@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
 import java.time.LocalTime;
 import java.util.List;
 
@@ -47,12 +48,15 @@ public class TripController {
     }
 
     // US13 - Buscar viajes: /api/trips/search?origin=Surco&destination=Monterrico&from=07:00&to=08:00
+    // US14 - Filtros opcionales: &zone=Surco&maxPrice=6
     @GetMapping("/search")
     public TripSearchResponseDTO search(@RequestParam(required = false) String origin,
                                         @RequestParam(required = false) String destination,
                                         @RequestParam(required = false) @DateTimeFormat(pattern = "HH:mm") LocalTime from,
-                                        @RequestParam(required = false) @DateTimeFormat(pattern = "HH:mm") LocalTime to) {
-        return tripSearchService.search(origin, destination, from, to);
+                                        @RequestParam(required = false) @DateTimeFormat(pattern = "HH:mm") LocalTime to,
+                                        @RequestParam(required = false) String zone,
+                                        @RequestParam(required = false) BigDecimal maxPrice) {
+        return tripSearchService.search(origin, destination, from, to, zone, maxPrice);
     }
 
     @GetMapping("/me")

@@ -12,8 +12,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -29,19 +31,34 @@ public class TripSearchService {
     // ==================== US13 - Buscar viajes por origen, destino y horario ====================
 
     // Todos los parámetros son opcionales. from y to son horas del día (ej. 07:00 y 08:00).
+    // US14 - zone y maxPrice son filtros adicionales sobre la misma búsqueda.
     @Transactional(readOnly = true)
-    public TripSearchResponseDTO search(String origin, String destination, LocalTime from, LocalTime to) {
+    public TripSearchResponseDTO search(String origin, String destination, LocalTime from, LocalTime to,
+                                        String zone, BigDecimal maxPrice) {
         if (from != null && to != null && from.isAfter(to)) {
             throw new BusinessRuleException("La hora de inicio debe ser anterior a la hora de fin");
         }
+        if (maxPrice != null && maxPrice.signum() < 0) {
+            throw new BusinessRuleException("El precio máximo no puede ser negativo");
+        }
+        boolean hasZone = zone != null && !zone.isBlank();
 
         // Solo se buscan viajes activos: con asientos libres y que aún no salen
         List<Trip> active = tripRepository.findByStatusAndDepartureTimeAfterOrderByDepartureTimeAsc(
                 TripStatus.SCHEDULED, LocalDateTime.now());
 
+        // US14 - Escenario de error: ningún viaje activo en esa zona
+        if (hasZone && active.stream().noneMatch(t -> sameZone(t, zone))) {
+            return new TripSearchResponseDTO("No hay viajes disponibles para esta zona",
+                    0, List.of(), List.of());
+        }
+
         // Primero se filtra por ruta (origen y destino)
+        // US14 - y se aplican los filtros de zona y precio máximo
         List<Trip> sameRoute = active.stream()
                 .filter(t -> contains(t.getOrigin(), origin) && contains(t.getDestination(), destination))
+                .filter(t -> !hasZone || sameZone(t, zone))
+                .filter(t -> maxPrice == null || t.getPricePerSeat().compareTo(maxPrice) <= 0)
                 .toList();
 
         // US13 - Escenario exitoso: ruta + rango de horario
@@ -53,6 +70,20 @@ public class TripSearchService {
         if (!results.isEmpty()) {
             return new TripSearchResponseDTO("Se encontraron " + results.size() + " viaje(s)",
                     results.size(), results, List.of());
+        }
+
+        // US14 - Escenario alternativo: zona + precio demasiado restrictivos juntos
+        if (hasZone && maxPrice != null) {
+            Trip cheapestInZone = active.stream()
+                    .filter(t -> sameZone(t, zone))
+                    .min(Comparator.comparing(Trip::getPricePerSeat))
+                    .orElse(null);
+            if (cheapestInZone != null && cheapestInZone.getPricePerSeat().compareTo(maxPrice) > 0) {
+                return new TripSearchResponseDTO("Ningún viaje cumple ambos filtros. Prueba ampliando "
+                        + "la zona o subiendo el precio máximo (en " + cheapestInZone.getZone()
+                        + " el viaje más barato cuesta S/ " + cheapestInZone.getPricePerSeat() + ")",
+                        0, List.of(), List.of());
+            }
         }
 
         // US13 - Escenario alternativo: viajes de la misma ruta con un horario cercano
@@ -85,6 +116,10 @@ public class TripSearchService {
             return true;
         }
         return LimaZones.normalize(value).contains(LimaZones.normalize(search));
+    }
+
+    private boolean sameZone(Trip trip, String zone) {
+        return LimaZones.normalize(trip.getZone()).equals(LimaZones.normalize(zone));
     }
 
     private boolean inRange(LocalTime time, LocalTime from, LocalTime to) {
