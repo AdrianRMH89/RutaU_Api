@@ -4,7 +4,7 @@ import jakarta.validation.constraints.NotNull;
 
 public record SeatRequestCreateDTO(
 
-        @NotNull(message = "Debes indicar el viaje")
+        @NotNull(message = "{validation.trip.required}")
         Long tripId,
 
         // US03 - Escenario alternativo: el pasajero confirma aunque haya cruce de horarios

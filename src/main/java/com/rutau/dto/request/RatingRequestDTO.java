@@ -7,18 +7,18 @@ import jakarta.validation.constraints.Size;
 
 public record RatingRequestDTO(
 
-        @NotNull(message = "Debes indicar el viaje")
+        @NotNull(message = "{validation.trip.required}")
         Long tripId,
 
         // A quién se califica: el conductor (si califica un pasajero) o un pasajero (si califica el conductor)
-        @NotNull(message = "Debes indicar a quién calificas")
+        @NotNull(message = "{validation.rated.user.required}")
         Long ratedUserId,
 
-        @NotNull(message = "Debes indicar una calificación")
-        @Min(value = 1, message = "La calificación debe estar entre 1 y 5 estrellas")
-        @Max(value = 5, message = "La calificación debe estar entre 1 y 5 estrellas")
+        @NotNull(message = "{validation.rating.required}")
+        @Min(value = 1, message = "{validation.rating.range}")
+        @Max(value = 5, message = "{validation.rating.range}")
         Integer score,
 
-        @Size(max = 500, message = "El comentario no puede superar los 500 caracteres")
+        @Size(max = 500, message = "{validation.comment.max}")
         String comment
 ) {}

@@ -10,6 +10,7 @@ import com.rutau.model.User;
 import com.rutau.repository.SeatRequestRepository;
 import com.rutau.repository.TripRepository;
 import com.rutau.security.CurrentUser;
+import com.rutau.util.Messages;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,7 @@ public class HistoryService {
     private final TripRepository tripRepository;
     private final SeatRequestRepository seatRequestRepository;
     private final CurrentUser currentUser;
+    private final Messages messages;
 
     // ==================== US15 - Consultar el historial de viajes ====================
 
@@ -76,11 +78,11 @@ public class HistoryService {
         String message;
         if (asDriver.isEmpty() && asPassenger.isEmpty() && inProgress.isEmpty()) {
             // US15 - Escenario de error
-            message = "Aún no tienes viajes registrados";
+            message = messages.get("history.empty");
         } else if (asDriver.isEmpty() && asPassenger.isEmpty()) {
-            message = "Aún no tienes viajes terminados; tienes " + inProgress.size() + " viaje(s) en curso";
+            message = messages.get("history.only.in.progress", inProgress.size());
         } else {
-            message = "Historial de viajes";
+            message = messages.get("history.ok");
         }
 
         return new TripHistoryResponseDTO(message, asDriver, asPassenger, inProgress);

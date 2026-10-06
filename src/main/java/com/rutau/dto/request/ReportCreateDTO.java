@@ -10,7 +10,7 @@ public record ReportCreateDTO(
 
         Long tripId,             // opcional si se indica el usuario
 
-        @NotBlank(message = "Debes indicar el motivo del reporte")
-        @Size(max = 500, message = "El motivo no puede superar los 500 caracteres")
+        @NotBlank(message = "{validation.report.reason.required}")
+        @Size(max = 500, message = "{validation.report.reason.max}")
         String reason
 ) {}

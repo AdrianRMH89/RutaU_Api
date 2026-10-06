@@ -28,6 +28,7 @@ import com.rutau.repository.TripStopRepository;
 import com.rutau.repository.VehicleRepository;
 import com.rutau.security.CurrentUser;
 import com.rutau.util.LimaZones;
+import com.rutau.util.Messages;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -53,6 +54,7 @@ public class TripService {
     private final SeatRequestMapper seatRequestMapper;
     private final NotificationService notificationService;
     private final CurrentUser currentUser;
+    private final Messages messages;
 
     // US02 - Publicar un viaje como conductor
     @Transactional
@@ -62,19 +64,17 @@ public class TripService {
         // US06 - Escenario alternativo: sin vehículo (ni su capacidad) no se puede publicar
         Vehicle vehicle = vehicleRepository.findByOwnerId(driver.getId())
                 .orElseThrow(() -> new BusinessRuleException(
-                        "Debes registrar tu vehículo y su capacidad antes de publicar un viaje"));
+                        "trip.vehicle.required"));
 
         // US02 - Escenario alternativo: 0 asientos
         if (dto.seats() == 0) {
             throw new BusinessRuleException(
-                    "Un viaje con 0 asientos no puede publicarse como disponible; márcalo como 'solo referencial'");
+                    "trip.zero.seats");
         }
 
         // US06 - Escenario de error: no se pueden ofrecer más asientos que la capacidad del vehículo
         if (dto.seats() > vehicle.getCapacity()) {
-            throw new BusinessRuleException(
-                    "El número de asientos supera la capacidad de tu vehículo (máximo "
-                    + vehicle.getCapacity() + ")");
+            throw new BusinessRuleException("trip.seats.over.capacity", vehicle.getCapacity());
         }
 
         Trip trip = new Trip();
@@ -95,7 +95,7 @@ public class TripService {
             for (TripStopRequestDTO stopDto : dto.stops()) {
                 if (!LimaZones.isOnRoute(trip.getZone(), stopDto.zone())) {
                     // US11 - Escenario de error
-                    throw new BusinessRuleException("El punto ingresado no coincide con la ruta del viaje");
+                    throw new BusinessRuleException("trip.stop.off.route");
                 }
                 TripStop stop = new TripStop();
                 stop.setTrip(trip);
@@ -113,7 +113,7 @@ public class TripService {
     @Transactional(readOnly = true)
     public List<TripStopResponseDTO> getStops(Long tripId) {
         if (!tripRepository.existsById(tripId)) {
-            throw new ResourceNotFoundException("Viaje no encontrado");
+            throw new ResourceNotFoundException("trip.not.found");
         }
         return tripStopRepository.findByTripIdOrderByStopOrderAsc(tripId).stream()
                 .map(tripStopMapper::toResponse)
@@ -124,7 +124,7 @@ public class TripService {
     public TripResponseDTO getById(Long id) {
         return tripRepository.findById(id)
                 .map(tripMapper::toResponse)
-                .orElseThrow(() -> new ResourceNotFoundException("Viaje no encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("trip.not.found"));
     }
 
     // Viajes que publicó el usuario logueado como conductor
@@ -152,13 +152,13 @@ public class TripService {
     public TripCompletionResponseDTO complete(Long tripId, CompleteTripRequestDTO dto) {
         User driver = currentUser.get();
         Trip trip = findTripForUpdate(tripId);
-        checkIsDriver(trip, driver, "Solo el conductor del viaje puede marcarlo como realizado");
+        checkIsDriver(trip, driver, "trip.complete.only.driver");
 
         if (trip.getStatus() == TripStatus.COMPLETED) {
-            throw new ConflictException("Este viaje ya fue marcado como realizado");
+            throw new ConflictException("trip.complete.already");
         }
         if (trip.getStatus() == TripStatus.CANCELLED) {
-            throw new ConflictException("No se puede marcar como realizado un viaje cancelado");
+            throw new ConflictException("trip.complete.cancelled");
         }
 
         boolean confirmEarly = dto != null && Boolean.TRUE.equals(dto.confirmEarly());
@@ -166,9 +166,7 @@ public class TripService {
 
         // US07 - Escenario de error: aún no llega la hora programada -> se pide confirmación
         if (LocalDateTime.now().isBefore(trip.getDepartureTime()) && !confirmEarly) {
-            throw new ConflictException("El viaje aún no llega a su hora programada ("
-                    + trip.getDepartureTime() + "). Si ya lo realizaste, confirma la acción "
-                    + "enviando confirmEarly: true");
+            throw new ConflictException("trip.complete.early", trip.getDepartureTime().toString());
         }
 
         List<SeatRequest> requests = seatRequestRepository.findByTripIdAndStatusIn(
@@ -180,8 +178,7 @@ public class TripService {
                 boolean valid = requests.stream().anyMatch(r ->
                         r.getId().equals(id) && r.getStatus() == RequestStatus.ACCEPTED);
                 if (!valid) {
-                    throw new BusinessRuleException("La solicitud " + id
-                            + " no corresponde a un pasajero aceptado de este viaje");
+                    throw new BusinessRuleException("trip.complete.request.invalid", id.toString());
                 }
             }
         }
@@ -209,7 +206,7 @@ public class TripService {
         tripRepository.save(trip);
 
         return new TripCompletionResponseDTO(trip.getId(), trip.getStatus(),
-                "Viaje marcado como realizado. Calificación habilitada para el conductor y los pasajeros que completaron el viaje.",
+                messages.get("trip.complete.success"),
                 passengers);
     }
 
@@ -219,14 +216,14 @@ public class TripService {
     public TripResponseDTO cancel(Long tripId, CancelRequestDTO dto) {
         User driver = currentUser.get();
         Trip trip = findTripForUpdate(tripId);
-        checkIsDriver(trip, driver, "Solo el conductor del viaje puede cancelarlo");
+        checkIsDriver(trip, driver, "trip.cancel.only.driver");
 
         // US08 - Escenario de error: un viaje realizado ya no se puede cancelar
         if (trip.getStatus() == TripStatus.COMPLETED) {
-            throw new ConflictException("Este viaje ya fue completado");
+            throw new ConflictException("trip.already.completed");
         }
         if (trip.getStatus() == TripStatus.CANCELLED) {
-            throw new ConflictException("Este viaje ya fue cancelado");
+            throw new ConflictException("trip.already.cancelled");
         }
 
         String reason = dto.reason().trim();
@@ -253,7 +250,7 @@ public class TripService {
 
     private Trip findTripForUpdate(Long tripId) {
         return tripRepository.findByIdForUpdate(tripId)
-                .orElseThrow(() -> new ResourceNotFoundException("Viaje no encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("trip.not.found"));
     }
 
     // Control por PROPIEDAD: solo el conductor del viaje puede gestionarlo (403)

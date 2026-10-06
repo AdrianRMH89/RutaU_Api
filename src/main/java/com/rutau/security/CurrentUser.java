@@ -14,6 +14,6 @@ public class CurrentUser {
         if (auth != null && auth.getPrincipal() instanceof UserPrincipal principal) {
             return principal.getUser();
         }
-        throw new AccessDeniedException("No hay usuario autenticado");
+        throw new AccessDeniedException("auth.no.user");
     }
 }

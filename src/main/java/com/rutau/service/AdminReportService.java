@@ -6,6 +6,7 @@ import com.rutau.exception.BusinessRuleException;
 import com.rutau.model.SeatRequest;
 import com.rutau.model.Trip;
 import com.rutau.repository.SeatRequestRepository;
+import com.rutau.util.Messages;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +34,7 @@ public class AdminReportService {
     private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     private final SeatRequestRepository seatRequestRepository;
+    private final Messages messages;
 
     // ==================== US17 - Reporte de rutas y horarios con mayor demanda ====================
 
@@ -42,7 +44,7 @@ public class AdminReportService {
         LocalDate start = from != null ? from : LocalDate.now().minusDays(30);
         LocalDate end = to != null ? to : LocalDate.now().plusDays(30);
         if (start.isAfter(end)) {
-            throw new BusinessRuleException("La fecha de inicio debe ser anterior a la fecha de fin");
+            throw new BusinessRuleException("report.dates.invalid");
         }
 
         // La demanda son las solicitudes de asiento de los viajes que salen en ese período
@@ -54,7 +56,7 @@ public class AdminReportService {
 
         // US17 - Escenario de error: el período no tiene datos
         if (requests.isEmpty()) {
-            return new DemandReportResponseDTO("No hay datos disponibles para el período seleccionado",
+            return new DemandReportResponseDTO(messages.get("report.no.data"),
                     start, end, groupedBy, 0L, List.of(), List.of(), List.of());
         }
 
@@ -72,8 +74,8 @@ public class AdminReportService {
                 .toList();
 
         String message = byWeek
-                ? "Reporte generado (agrupado por semana porque el rango supera los " + MAX_DAYS_DAILY + " días)"
-                : "Reporte generado";
+                ? messages.get("report.generated.weekly", MAX_DAYS_DAILY)
+                : messages.get("report.generated");
 
         return new DemandReportResponseDTO(message, start, end, groupedBy, (long) requests.size(),
                 topRoutes, topHours, timeline);
