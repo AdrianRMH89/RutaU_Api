@@ -51,20 +51,20 @@ public class SeatRequestService {
         Trip trip = findTrip(dto.tripId());
 
         if (trip.getDriver().getId().equals(passenger.getId())) {
-            throw new BusinessRuleException("No puedes solicitar un asiento en tu propio viaje");
+            throw new BusinessRuleException("seat.own.trip");
         }
 
         if (trip.getStatus() == TripStatus.CANCELLED || trip.getStatus() == TripStatus.COMPLETED) {
-            throw new BusinessRuleException("Este viaje ya no está disponible para solicitudes");
+            throw new BusinessRuleException("seat.trip.unavailable");
         }
 
         // US03 - Escenario de error / US05 - Escenario de error
         if (trip.getAvailableSeats() <= 0) {
-            throw new ConflictException("Viaje completo: este viaje ya no tiene cupos disponibles");
+            throw new ConflictException("seat.trip.full");
         }
 
         if (seatRequestRepository.existsByTripIdAndPassengerId(trip.getId(), passenger.getId())) {
-            throw new ConflictException("Ya solicitaste un asiento en este viaje");
+            throw new ConflictException("seat.duplicate");
         }
 
         // US03 - Escenario alternativo: cruce de horarios con otra solicitud activa
@@ -75,9 +75,7 @@ public class SeatRequestService {
                 trip.getDepartureTime().plusMinutes(OVERLAP_MINUTES));
 
         if (overlap && !Boolean.TRUE.equals(dto.confirmOverlap())) {
-            throw new ConflictException(
-                    "Ya tienes una solicitud en otro viaje que se cruza con este horario. "
-                    + "Si deseas continuar, vuelve a enviar la solicitud con confirmOverlap: true");
+            throw new ConflictException("seat.overlap");
         }
 
         SeatRequest seatRequest = new SeatRequest();
@@ -88,9 +86,9 @@ public class SeatRequestService {
         // Escenario alternativo: si no lo indica, queda null y se usa el origen del conductor.
         if (dto.pickupStopId() != null) {
             TripStop stop = tripStopRepository.findById(dto.pickupStopId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Punto intermedio no encontrado"));
+                    .orElseThrow(() -> new ResourceNotFoundException("stop.not.found"));
             if (!stop.getTrip().getId().equals(trip.getId())) {
-                throw new BusinessRuleException("El punto intermedio indicado no pertenece a este viaje");
+                throw new BusinessRuleException("stop.not.in.trip");
             }
             seatRequest.setPickupStop(stop);
         }
@@ -141,7 +139,7 @@ public class SeatRequestService {
 
         // US04 - Escenario de error: el viaje ya está completo
         if (trip.getAvailableSeats() <= 0) {
-            throw new ConflictException("Ya no hay asientos disponibles para aceptar esta solicitud");
+            throw new ConflictException("seat.no.seats.to.accept");
         }
 
         // US04 - Escenario exitoso: se reserva el asiento y se descuenta
@@ -195,18 +193,17 @@ public class SeatRequestService {
 
         // Control por PROPIEDAD: solo el pasajero que hizo la solicitud puede cancelarla
         if (!seatRequest.getPassenger().getId().equals(passenger.getId())) {
-            throw new AccessDeniedException("Solo el pasajero que hizo la solicitud puede cancelarla");
+            throw new AccessDeniedException("seat.cancel.only.passenger");
         }
 
         // US08 - Escenario de error: no se puede cancelar un viaje ya realizado
         if (seatRequest.getTrip().getStatus() == TripStatus.COMPLETED) {
-            throw new ConflictException("Este viaje ya fue completado");
+            throw new ConflictException("trip.already.completed");
         }
 
         if (seatRequest.getStatus() != RequestStatus.PENDING
                 && seatRequest.getStatus() != RequestStatus.ACCEPTED) {
-            throw new ConflictException("Esta solicitud ya no se puede cancelar (estado: "
-                    + seatRequest.getStatus() + ")");
+            throw new ConflictException("seat.cancel.invalid.status", seatRequest.getStatus());
         }
 
         Trip trip = findTripForUpdate(seatRequest.getTrip().getId());
@@ -240,30 +237,29 @@ public class SeatRequestService {
 
     private Trip findTrip(Long tripId) {
         return tripRepository.findById(tripId)
-                .orElseThrow(() -> new ResourceNotFoundException("Viaje no encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("trip.not.found"));
     }
 
     private Trip findTripForUpdate(Long tripId) {
         return tripRepository.findByIdForUpdate(tripId)
-                .orElseThrow(() -> new ResourceNotFoundException("Viaje no encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("trip.not.found"));
     }
 
     private SeatRequest findRequest(Long requestId) {
         return seatRequestRepository.findById(requestId)
-                .orElseThrow(() -> new ResourceNotFoundException("Solicitud no encontrada"));
+                .orElseThrow(() -> new ResourceNotFoundException("seat.request.not.found"));
     }
 
     // Control por PROPIEDAD: solo el conductor del viaje puede gestionar sus solicitudes (403)
     private void checkIsDriver(Trip trip, User user) {
         if (!trip.getDriver().getId().equals(user.getId())) {
-            throw new AccessDeniedException("Solo el conductor del viaje puede gestionar sus solicitudes");
+            throw new AccessDeniedException("seat.only.driver");
         }
     }
 
     private void checkIsPending(SeatRequest seatRequest) {
         if (seatRequest.getStatus() != RequestStatus.PENDING) {
-            throw new ConflictException("Esta solicitud ya fue procesada (estado: "
-                    + seatRequest.getStatus() + ")");
+            throw new ConflictException("seat.already.processed", seatRequest.getStatus());
         }
     }
 }

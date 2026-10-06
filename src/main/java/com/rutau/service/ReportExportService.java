@@ -26,7 +26,7 @@ public class ReportExportService {
     public ExportedFile exportDemandReport(String format, LocalDate from, LocalDate to) {
         String type = format == null ? "" : format.trim().toLowerCase();
         if (!type.equals("xlsx") && !type.equals("pdf")) {
-            throw new BusinessRuleException("Formato no válido: usa 'xlsx' (Excel) o 'pdf'");
+            throw new BusinessRuleException("export.format.invalid");
         }
 
         // Se exporta exactamente el mismo reporte de la US17
@@ -34,7 +34,7 @@ public class ReportExportService {
 
         // US18 - Escenario de error: no se exporta un reporte vacío
         if (report.totalRequests() == 0) {
-            throw new BusinessRuleException("No hay información para exportar");
+            throw new BusinessRuleException("export.no.data");
         }
 
         String baseName = "reporte-demanda_" + report.from() + "_" + report.to();

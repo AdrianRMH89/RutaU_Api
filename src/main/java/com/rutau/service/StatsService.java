@@ -4,6 +4,7 @@ import com.rutau.dto.response.HourSlotDTO;
 import com.rutau.dto.response.ScheduleComparisonResponseDTO;
 import com.rutau.repository.SeatRequestRepository;
 import com.rutau.repository.TripRepository;
+import com.rutau.util.Messages;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +28,7 @@ public class StatsService {
 
     private final TripRepository tripRepository;
     private final SeatRequestRepository seatRequestRepository;
+    private final Messages messages;
 
     // ==================== US12 - Comparar horarios ofertados y solicitados ====================
 
@@ -54,7 +56,7 @@ public class StatsService {
         // US12 - Escenario de error: no hay suficiente historial
         if (totalTrips < MIN_TRIPS || totalRequests < MIN_REQUESTS) {
             return new ScheduleComparisonResponseDTO(false,
-                    "Aún no hay suficientes datos para mostrar esta comparación",
+                    messages.get("stats.not.enough"),
                     zoneLabel(zoneFilter), totalTrips, totalRequests, null, null, List.of(), List.of());
         }
 
@@ -79,16 +81,15 @@ public class StatsService {
                 .toList();
 
         String message = opportunities.isEmpty()
-                ? "Comparación de horarios generada"
-                : "Horarios con alta demanda y poca oferta (oportunidad para publicar): "
-                  + String.join(", ", opportunities);
+                ? messages.get("stats.ok")
+                : messages.get("stats.opportunities", String.join(", ", opportunities));
 
         return new ScheduleComparisonResponseDTO(true, message, zoneLabel(zoneFilter), totalTrips, totalRequests,
                 mostOffered, mostRequested, opportunities, slots);
     }
 
-    private static String zoneLabel(String zoneFilter) {
-        return zoneFilter.isEmpty() ? "Todas las zonas" : zoneFilter;
+    private String zoneLabel(String zoneFilter) {
+        return zoneFilter.isEmpty() ? messages.get("stats.all.zones") : zoneFilter;
     }
 
     private static String label(int hour) {

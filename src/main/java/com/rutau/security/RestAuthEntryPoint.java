@@ -1,6 +1,7 @@
 package com.rutau.security;
 
 import com.rutau.dto.response.ApiErrorResponse;
+import com.rutau.util.Messages;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +12,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.stereotype.Component;
+import org.springframework.web.servlet.LocaleResolver;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
@@ -20,19 +22,21 @@ import java.io.IOException;
 public class RestAuthEntryPoint implements AuthenticationEntryPoint, AccessDeniedHandler {
 
     private final JsonMapper jsonMapper;
+    private final Messages messages;
+    private final LocaleResolver localeResolver;
 
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response,
                          AuthenticationException authException) throws IOException {
         write(response, HttpStatus.UNAUTHORIZED, "Unauthorized",
-                "Token ausente o inválido", request.getRequestURI());
+                messages.get(localeResolver.resolveLocale(request), "error.token.invalid"), request.getRequestURI());
     }
 
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response,
                        AccessDeniedException accessDeniedException) throws IOException {
         write(response, HttpStatus.FORBIDDEN, "Forbidden",
-                "No tienes permisos para acceder a este recurso", request.getRequestURI());
+                messages.get(localeResolver.resolveLocale(request), "error.forbidden"), request.getRequestURI());
     }
 
     private void write(HttpServletResponse response, HttpStatus status, String error,

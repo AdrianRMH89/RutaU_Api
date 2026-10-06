@@ -18,6 +18,7 @@ import com.rutau.repository.SeatRequestRepository;
 import com.rutau.repository.TripRepository;
 import com.rutau.repository.UserRepository;
 import com.rutau.security.CurrentUser;
+import com.rutau.util.Messages;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,7 @@ public class RatingService {
     private final UserRepository userRepository;
     private final RatingMapper ratingMapper;
     private final CurrentUser currentUser;
+    private final Messages messages;
 
     // ==================== US09 - Calificar el viaje al finalizar ====================
 
@@ -43,24 +45,24 @@ public class RatingService {
         User rater = currentUser.get();
 
         Trip trip = tripRepository.findById(dto.tripId())
-                .orElseThrow(() -> new ResourceNotFoundException("Viaje no encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("trip.not.found"));
 
         // US09 - Escenario alternativo: un viaje cancelado no habilita la calificación
         if (trip.getStatus() == TripStatus.CANCELLED) {
-            throw new BusinessRuleException("La calificación no está habilitada para viajes cancelados");
+            throw new BusinessRuleException("rating.trip.cancelled");
         }
 
         // US09 - Escenario de error: solo se califican viajes ya finalizados
         if (trip.getStatus() != TripStatus.COMPLETED) {
-            throw new BusinessRuleException("Solo puedes calificar viajes ya finalizados");
+            throw new BusinessRuleException("rating.trip.not.completed");
         }
 
         if (rater.getId().equals(dto.ratedUserId())) {
-            throw new BusinessRuleException("No puedes calificarte a ti mismo");
+            throw new BusinessRuleException("rating.self");
         }
 
         User rated = userRepository.findById(dto.ratedUserId())
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario a calificar no encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("rating.user.not.found"));
 
         Long driverId = trip.getDriver().getId();
         RatedRole ratedRole;
@@ -68,21 +70,21 @@ public class RatingService {
         if (rater.getId().equals(driverId)) {
             // El conductor califica a un pasajero que completó el viaje
             if (!completedTrip(trip, rated)) {
-                throw new BusinessRuleException("Solo puedes calificar a pasajeros que completaron este viaje");
+                throw new BusinessRuleException("rating.only.completed.passengers");
             }
             ratedRole = RatedRole.PASSENGER;
         } else if (completedTrip(trip, rater)) {
             // Un pasajero que completó el viaje califica al conductor
             if (!rated.getId().equals(driverId)) {
-                throw new BusinessRuleException("Como pasajero solo puedes calificar al conductor del viaje");
+                throw new BusinessRuleException("rating.passenger.only.driver");
             }
             ratedRole = RatedRole.DRIVER;
         } else {
-            throw new AccessDeniedException("Solo los participantes de este viaje pueden calificarlo");
+            throw new AccessDeniedException("rating.not.participant");
         }
 
         if (ratingRepository.existsByTripIdAndRaterIdAndRatedId(trip.getId(), rater.getId(), rated.getId())) {
-            throw new ConflictException("Ya calificaste a este usuario en este viaje");
+            throw new ConflictException("rating.duplicate");
         }
 
         // US09 - Escenario exitoso: la calificación queda en el perfil del otro usuario
@@ -115,14 +117,13 @@ public class RatingService {
                 ? ratingRepository.findByRatedIdOrderByCreatedAtDesc(user.getId())
                 : ratingRepository.findByRatedIdAndRatedRoleOrderByCreatedAtDesc(user.getId(), role);
 
-        String roleLabel = role == null ? "Todos los roles" : role.name();
+        String roleLabel = role == null ? messages.get("ratings.all.roles") : role.name();
 
         if (ratings.isEmpty()) {
             // US16 - Escenario de error
             String message = role == null
-                    ? "Aún no has recibido calificaciones"
-                    : "Aún no has recibido calificaciones como "
-                      + (role == RatedRole.DRIVER ? "conductor" : "pasajero");
+                    ? messages.get("ratings.empty")
+                    : messages.get(role == RatedRole.DRIVER ? "ratings.empty.driver" : "ratings.empty.passenger");
             return new RatingHistoryResponseDTO(message, roleLabel, 0L, null, List.of());
         }
 
@@ -130,7 +131,7 @@ public class RatingService {
         double rounded = Math.round(average * 10) / 10.0;
 
         // US16 - Escenario exitoso: fecha, puntaje y comentario de cada calificación
-        return new RatingHistoryResponseDTO("Calificaciones recibidas", roleLabel,
+        return new RatingHistoryResponseDTO(messages.get("ratings.ok"), roleLabel,
                 (long) ratings.size(), rounded,
                 ratings.stream().map(ratingMapper::toResponse).toList());
     }

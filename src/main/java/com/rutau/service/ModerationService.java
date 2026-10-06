@@ -42,23 +42,23 @@ public class ModerationService {
     public ReportResponseDTO create(ReportCreateDTO dto) {
         User reporter = currentUser.get();
         if (dto.reportedUserId() == null && dto.tripId() == null) {
-            throw new BusinessRuleException("Debes indicar el usuario o el viaje que quieres reportar");
+            throw new BusinessRuleException("report.target.required");
         }
 
         Trip trip = null;
         if (dto.tripId() != null) {
             trip = tripRepository.findById(dto.tripId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Viaje no encontrado"));
+                    .orElseThrow(() -> new ResourceNotFoundException("trip.not.found"));
         }
 
         // Si solo se reporta el viaje, el usuario reportado es su conductor
         User reported = dto.reportedUserId() != null
                 ? userRepository.findById(dto.reportedUserId())
-                        .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"))
+                        .orElseThrow(() -> new ResourceNotFoundException("user.not.found"))
                 : trip.getDriver();
 
         if (reported.getId().equals(reporter.getId())) {
-            throw new BusinessRuleException("No puedes reportarte a ti mismo");
+            throw new BusinessRuleException("report.self");
         }
 
         Report report = new Report();
@@ -93,7 +93,7 @@ public class ModerationService {
 
         // US19 - Escenario de error: el reporte ya fue resuelto o descartado
         if (report.getStatus() != ReportStatus.PENDING) {
-            throw new ConflictException("Este reporte ya fue atendido");
+            throw new ConflictException("report.already.handled");
         }
 
         User reported = report.getReportedUser();
@@ -127,7 +127,7 @@ public class ModerationService {
     @Transactional(readOnly = true)
     public UserModerationResponseDTO userHistory(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("user.not.found"));
         List<ReportResponseDTO> reports = reportRepository.findByReportedUserIdOrderByCreatedAtDesc(userId)
                 .stream().map(this::toResponse).toList();
         long valid = reportRepository.countByReportedUserIdAndStatus(userId, ReportStatus.RESOLVED);
@@ -139,7 +139,7 @@ public class ModerationService {
 
     private Report findReport(Long id) {
         return reportRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Reporte no encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("report.not.found"));
     }
 
     private String accountStatus(User user) {

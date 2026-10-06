@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Size;
 
 public record CancelRequestDTO(
 
-        @NotBlank(message = "Debes indicar el motivo de la cancelación")
-        @Size(max = 255, message = "El motivo no puede superar los 255 caracteres")
+        @NotBlank(message = "{validation.cancel.reason.required}")
+        @Size(max = 255, message = "{validation.cancel.reason.max}")
         String reason
 ) {}

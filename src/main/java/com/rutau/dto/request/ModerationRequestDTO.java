@@ -7,9 +7,9 @@ import jakarta.validation.constraints.Size;
 // US19 - Acción del administrador sobre un reporte
 public record ModerationRequestDTO(
 
-        @NotNull(message = "Debes indicar la acción: WARNING, SUSPENSION o DISMISS")
+        @NotNull(message = "{validation.moderation.action.required}")
         ModerationAction action,
 
-        @Size(max = 200, message = "La nota no puede superar los 200 caracteres")
+        @Size(max = 200, message = "{validation.notes.max}")
         String notes
 ) {}

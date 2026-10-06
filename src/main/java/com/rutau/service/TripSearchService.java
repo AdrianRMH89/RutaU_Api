@@ -8,6 +8,7 @@ import com.rutau.model.Trip;
 import com.rutau.model.TripStatus;
 import com.rutau.repository.TripRepository;
 import com.rutau.util.LimaZones;
+import com.rutau.util.Messages;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +28,7 @@ public class TripSearchService {
 
     private final TripRepository tripRepository;
     private final TripMapper tripMapper;
+    private final Messages messages;
 
     // ==================== US13 - Buscar viajes por origen, destino y horario ====================
 
@@ -36,10 +38,10 @@ public class TripSearchService {
     public TripSearchResponseDTO search(String origin, String destination, LocalTime from, LocalTime to,
                                         String zone, BigDecimal maxPrice) {
         if (from != null && to != null && from.isAfter(to)) {
-            throw new BusinessRuleException("La hora de inicio debe ser anterior a la hora de fin");
+            throw new BusinessRuleException("search.time.invalid");
         }
         if (maxPrice != null && maxPrice.signum() < 0) {
-            throw new BusinessRuleException("El precio máximo no puede ser negativo");
+            throw new BusinessRuleException("search.price.negative");
         }
         boolean hasZone = zone != null && !zone.isBlank();
 
@@ -49,7 +51,7 @@ public class TripSearchService {
 
         // US14 - Escenario de error: ningún viaje activo en esa zona
         if (hasZone && active.stream().noneMatch(t -> sameZone(t, zone))) {
-            return new TripSearchResponseDTO("No hay viajes disponibles para esta zona",
+            return new TripSearchResponseDTO(messages.get("search.zone.empty"),
                     0, List.of(), List.of());
         }
 
@@ -68,7 +70,7 @@ public class TripSearchService {
                 .toList();
 
         if (!results.isEmpty()) {
-            return new TripSearchResponseDTO("Se encontraron " + results.size() + " viaje(s)",
+            return new TripSearchResponseDTO(messages.get("search.found", results.size()),
                     results.size(), results, List.of());
         }
 
@@ -79,9 +81,8 @@ public class TripSearchService {
                     .min(Comparator.comparing(Trip::getPricePerSeat))
                     .orElse(null);
             if (cheapestInZone != null && cheapestInZone.getPricePerSeat().compareTo(maxPrice) > 0) {
-                return new TripSearchResponseDTO("Ningún viaje cumple ambos filtros. Prueba ampliando "
-                        + "la zona o subiendo el precio máximo (en " + cheapestInZone.getZone()
-                        + " el viaje más barato cuesta S/ " + cheapestInZone.getPricePerSeat() + ")",
+                return new TripSearchResponseDTO(messages.get("search.too.restrictive",
+                        cheapestInZone.getZone(), cheapestInZone.getPricePerSeat().toPlainString()),
                         0, List.of(), List.of());
             }
         }
@@ -98,13 +99,12 @@ public class TripSearchService {
         }
 
         if (!alternatives.isEmpty()) {
-            return new TripSearchResponseDTO("No hay viajes exactamente en ese horario, "
-                    + "pero encontramos opciones con un horario cercano (±" + NEAR_MINUTES + " minutos)",
+            return new TripSearchResponseDTO(messages.get("search.near", NEAR_MINUTES),
                     0, List.of(), alternatives);
         }
 
         // US13 - Escenario de error
-        return new TripSearchResponseDTO("No se encontraron viajes disponibles para esta búsqueda",
+        return new TripSearchResponseDTO(messages.get("search.none"),
                 0, List.of(), List.of());
     }
 

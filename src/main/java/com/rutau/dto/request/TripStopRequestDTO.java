@@ -6,11 +6,11 @@ import jakarta.validation.constraints.Size;
 // US11 - Punto intermedio de recojo o bajada
 public record TripStopRequestDTO(
 
-        @NotBlank(message = "La dirección del punto intermedio es obligatoria")
+        @NotBlank(message = "{validation.stop.address.required}")
         @Size(max = 200)
         String address,
 
-        @NotBlank(message = "El distrito del punto intermedio es obligatorio")
+        @NotBlank(message = "{validation.stop.zone.required}")
         @Size(max = 100)
         String zone
 ) {}

@@ -26,12 +26,12 @@ public class VehicleService {
         User owner = currentUser.get();   // el usuario logueado es el dueño
 
         if (vehicleRepository.findByOwnerId(owner.getId()).isPresent()) {
-            throw new ConflictException("Ya tienes un vehículo registrado");
+            throw new ConflictException("vehicle.already.registered");
         }
 
         String plate = dto.plate().trim().toUpperCase();
         if (vehicleRepository.existsByPlate(plate)) {
-            throw new ConflictException("Ya existe un vehículo registrado con la placa " + plate);
+            throw new ConflictException("vehicle.plate.duplicate", plate);
         }
 
         Vehicle vehicle = new Vehicle();
@@ -50,7 +50,7 @@ public class VehicleService {
         User owner = currentUser.get();
         return vehicleRepository.findByOwnerId(owner.getId())
                 .map(vehicleMapper::toResponse)
-                .orElseThrow(() -> new ResourceNotFoundException("Aún no has registrado tu vehículo"));
+                .orElseThrow(() -> new ResourceNotFoundException("vehicle.not.found"));
     }
 
     // US06 - El conductor actualiza los datos de su vehículo (por ejemplo, la capacidad)
@@ -58,11 +58,11 @@ public class VehicleService {
     public VehicleResponseDTO updateMyVehicle(VehicleRequestDTO dto) {
         User owner = currentUser.get();
         Vehicle vehicle = vehicleRepository.findByOwnerId(owner.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Aún no has registrado tu vehículo"));
+                .orElseThrow(() -> new ResourceNotFoundException("vehicle.not.found"));
 
         String plate = dto.plate().trim().toUpperCase();
         if (!plate.equals(vehicle.getPlate()) && vehicleRepository.existsByPlate(plate)) {
-            throw new ConflictException("Ya existe un vehículo registrado con la placa " + plate);
+            throw new ConflictException("vehicle.plate.duplicate", plate);
         }
 
         vehicle.setBrand(dto.brand().trim());

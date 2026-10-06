@@ -38,13 +38,13 @@ public class AuthService {
 
         // US01 - Escenario alternativo: solo correos institucionales
         if (!email.endsWith(INSTITUTIONAL_DOMAIN)) {
-            throw new BusinessRuleException("Debes registrarte con tu correo institucional");
+            throw new BusinessRuleException("auth.email.institutional");
         }
         if (userRepository.existsByEmail(email)) {
-            throw new ConflictException("El correo ya está registrado");
+            throw new ConflictException("auth.email.duplicate");
         }
         if (userRepository.existsByName(dto.name().trim())) {
-            throw new ConflictException("El nombre de usuario ya está en uso");
+            throw new ConflictException("auth.username.duplicate");
         }
 
         User user = new User();

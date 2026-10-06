@@ -2,6 +2,12 @@ spring:
   application:
     name: rutau-api
 
+  # i18n: mensajes en es-419 (por defecto) y en-US, elegidos con el encabezado Accept-Language
+  messages:
+    basename: i18n/messages
+    encoding: UTF-8
+    fallback-to-system-locale: false
+
   datasource:
     url: jdbc:postgresql://localhost:5432/RutaU_DB
     username: postgres

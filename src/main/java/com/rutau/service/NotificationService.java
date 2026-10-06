@@ -42,9 +42,9 @@ public class NotificationService {
     public NotificationResponseDTO markAsRead(Long id) {
         User user = currentUser.get();
         Notification notification = notificationRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Notificación no encontrada"));
+                .orElseThrow(() -> new ResourceNotFoundException("notification.not.found"));
         if (!notification.getUser().getId().equals(user.getId())) {
-            throw new AccessDeniedException("Solo puedes marcar tus propias notificaciones");
+            throw new AccessDeniedException("notification.not.owner");
         }
         notification.setRead(true);
         return notificationMapper.toResponse(notificationRepository.save(notification));
