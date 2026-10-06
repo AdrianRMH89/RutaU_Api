@@ -47,6 +47,7 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()   // registro y login: públicos
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN") // panel de administración
                         // La página interna de errores debe ser pública; si no, cualquier error
                         // termina mostrándose como un 401 "Token ausente o inválido"
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
