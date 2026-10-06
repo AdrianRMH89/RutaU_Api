@@ -47,6 +47,8 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()   // registro y login: públicos
+                        // Swagger / OpenAPI: documentación pública de la API
+                        .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN") // panel de administración
                         // La página interna de errores debe ser pública; si no, cualquier error
                         // termina mostrándose como un 401 "Token ausente o inválido"
