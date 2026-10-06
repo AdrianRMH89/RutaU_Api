@@ -96,7 +96,13 @@ public class SeatRequestService {
         }
         seatRequest.setStatus(RequestStatus.PENDING);   // "Pendiente de confirmación"
 
-        return seatRequestMapper.toResponse(seatRequestRepository.save(seatRequest));
+        SeatRequest saved = seatRequestRepository.save(seatRequest);
+
+        // US20 - El conductor recibe un aviso de la nueva solicitud
+        notificationService.notify(trip.getDriver(), NotificationType.REQUEST_RECEIVED,
+                passenger.getFullName() + " solicitó un asiento en tu viaje " + describe(trip));
+
+        return seatRequestMapper.toResponse(saved);
     }
 
     @Transactional(readOnly = true)
@@ -150,6 +156,12 @@ public class SeatRequestService {
         seatRequest.setStatus(RequestStatus.ACCEPTED);
 
         tripRepository.save(trip);
+
+        // US20 - Escenario exitoso: el pasajero recibe el aviso de que su asiento fue confirmado
+        notificationService.notify(seatRequest.getPassenger(), NotificationType.REQUEST_ACCEPTED,
+                "¡Tu asiento fue confirmado! Viaje " + describe(trip) + " con "
+                        + trip.getDriver().getFullName());
+
         return seatRequestMapper.toResponse(seatRequestRepository.save(seatRequest));
     }
 
@@ -163,6 +175,12 @@ public class SeatRequestService {
         checkIsPending(seatRequest);
 
         seatRequest.setStatus(RequestStatus.REJECTED);
+
+        // US20 - Escenario de error: el pasajero recibe el aviso de que su solicitud fue rechazada
+        notificationService.notify(seatRequest.getPassenger(), NotificationType.REQUEST_REJECTED,
+                "Tu solicitud de asiento para el viaje " + describe(seatRequest.getTrip())
+                        + " fue rechazada por el conductor");
+
         return seatRequestMapper.toResponse(seatRequestRepository.save(seatRequest));
     }
 
