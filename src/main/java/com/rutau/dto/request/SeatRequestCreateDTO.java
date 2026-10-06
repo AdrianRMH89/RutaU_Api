@@ -4,9 +4,13 @@ import jakarta.validation.constraints.NotNull;
 
 public record SeatRequestCreateDTO(
 
-        @NotNull(message = "Debes indicar el viaje")
+        @NotNull(message = "{validation.trip.required}")
         Long tripId,
 
         // US03 - Escenario alternativo: el pasajero confirma aunque haya cruce de horarios
-        Boolean confirmOverlap
+        Boolean confirmOverlap,
+
+        // US11 - Opcional: punto intermedio donde el pasajero sube o baja.
+        // Si no se envía, el recojo es en el origen del conductor.
+        Long pickupStopId
 ) {}

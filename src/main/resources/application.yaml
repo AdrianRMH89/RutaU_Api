@@ -2,6 +2,12 @@ spring:
   application:
     name: rutau-api
 
+  # i18n: mensajes en es-419 (por defecto) y en-US, elegidos con el encabezado Accept-Language
+  messages:
+    basename: i18n/messages
+    encoding: UTF-8
+    fallback-to-system-locale: false
+
   datasource:
     url: jdbc:postgresql://localhost:5432/RutaU_DB
     username: postgres
@@ -22,3 +28,17 @@ jwt:
   # Clave para firmar los tokens (mínimo 32 caracteres). En producción se pasa por variable de entorno.
   secret: ${JWT_SECRET:rutau-clave-secreta-de-desarrollo-cambiar-en-produccion-2026}
   expiration-ms: 86400000   # 24 horas
+
+rutau:
+  # Cuenta de administrador que se crea sola al iniciar (US17-US19). En producción, usar variables de entorno.
+  admin:
+    email: ${ADMIN_EMAIL:admin@rutau.edu.pe}
+    password: ${ADMIN_PASSWORD:admin12345}
+
+
+# Swagger / OpenAPI (springdoc)
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: method

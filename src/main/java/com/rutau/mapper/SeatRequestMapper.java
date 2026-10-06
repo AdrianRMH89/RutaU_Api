@@ -15,5 +15,16 @@ public interface SeatRequestMapper {
     @Mapping(source = "trip.availableSeats", target = "tripAvailableSeats")
     @Mapping(source = "passenger.id", target = "passengerId")
     @Mapping(source = "passenger.fullName", target = "passengerName")
+    @Mapping(source = "pickupStop.id", target = "pickupStopId")
+    @Mapping(target = "pickupPoint", expression = "java(pickupPoint(seatRequest))")
     SeatRequestResponseDTO toResponse(SeatRequest seatRequest);
+
+    // US11 - Escenario alternativo: sin punto intermedio se asume el origen del conductor
+    default String pickupPoint(SeatRequest seatRequest) {
+        if (seatRequest.getPickupStop() != null) {
+            return seatRequest.getPickupStop().getAddress()
+                    + " (" + seatRequest.getPickupStop().getZone() + ")";
+        }
+        return "Origen del conductor: " + seatRequest.getTrip().getOrigin();
+    }
 }

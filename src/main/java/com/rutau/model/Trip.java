@@ -7,6 +7,8 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "trips")
@@ -55,4 +57,9 @@ public class Trip {
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    // US11 - Puntos intermedios de recojo o bajada (se guardan junto con el viaje)
+    @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("stopOrder ASC")
+    private List<TripStop> stops = new ArrayList<>();
 }

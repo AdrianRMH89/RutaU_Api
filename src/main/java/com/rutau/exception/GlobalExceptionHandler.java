@@ -1,9 +1,14 @@
 package com.rutau.exception;
 
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.ServletRequestBindingException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import com.rutau.dto.response.ApiErrorResponse;
+import com.rutau.util.Messages;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,32 +19,38 @@ import org.springframework.security.authentication.DisabledException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+    // i18n - los mensajes se traducen según el encabezado Accept-Language (es-419 / en-US)
+    private final Messages messages;
 
     // 404 - el recurso no existe
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiErrorResponse> handleNotFound(ResourceNotFoundException ex,
                                                            HttpServletRequest req) {
-        return build(HttpStatus.NOT_FOUND, "Not Found", ex.getMessage(), req);
+        return build(HttpStatus.NOT_FOUND, "Not Found", messages.get(ex.getMessage(), ex.getArgs()), req);
     }
 
     // 400 - se rompió una regla del negocio
     @ExceptionHandler(BusinessRuleException.class)
     public ResponseEntity<ApiErrorResponse> handleBusinessRule(BusinessRuleException ex,
                                                                HttpServletRequest req) {
-        return build(HttpStatus.BAD_REQUEST, "Bad Request", ex.getMessage(), req);
+        return build(HttpStatus.BAD_REQUEST, "Bad Request", messages.get(ex.getMessage(), ex.getArgs()), req);
     }
 
     // 409 - conflicto con el estado actual
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<ApiErrorResponse> handleConflict(ConflictException ex,
                                                            HttpServletRequest req) {
-        return build(HttpStatus.CONFLICT, "Conflict", ex.getMessage(), req);
+        return build(HttpStatus.CONFLICT, "Conflict", messages.get(ex.getMessage(), ex.getArgs()), req);
     }
 
     // 409 - la base de datos rechazó el dato (ej. placa o correo duplicado)
@@ -47,7 +58,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleDataIntegrity(DataIntegrityViolationException ex,
                                                                 HttpServletRequest req) {
         return build(HttpStatus.CONFLICT, "Conflict",
-                "El registro viola una restricción de datos (posible duplicado)", req);
+                messages.get("error.data.integrity"), req);
     }
 
     // 400 - el JSON enviado está mal escrito
@@ -55,7 +66,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleUnreadable(HttpMessageNotReadableException ex,
                                                              HttpServletRequest req) {
         return build(HttpStatus.BAD_REQUEST, "Bad Request",
-                "Cuerpo de la petición inválido o mal formado", req);
+                messages.get("error.body.invalid"), req);
     }
 
     // 400 - falló una validación (@NotBlank, @Email, @Min, etc.)
@@ -65,10 +76,10 @@ public class GlobalExceptionHandler {
         List<Map<String, String>> fieldErrors = ex.getBindingResult().getFieldErrors().stream()
                 .map(err -> Map.of(
                         "field", err.getField(),
-                        "message", err.getDefaultMessage() != null ? err.getDefaultMessage() : "inválido"))
+                        "message", err.getDefaultMessage() != null ? err.getDefaultMessage() : messages.get("error.field.invalid")))
                 .toList();
         ApiErrorResponse body = ApiErrorResponse.of(400, "Bad Request",
-                "Error de validación", req.getRequestURI(), fieldErrors);
+                messages.get("error.validation"), req.getRequestURI(), fieldErrors);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
@@ -76,14 +87,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ApiErrorResponse> handleBadCredentials(BadCredentialsException ex,
                                                                  HttpServletRequest req) {
-        return build(HttpStatus.UNAUTHORIZED, "Unauthorized", "Correo o contraseña incorrectos", req);
+        return build(HttpStatus.UNAUTHORIZED, "Unauthorized", messages.get("error.bad.credentials"), req);
     }
 
     // NUEVO: 403 - cuenta deshabilitada (ej. suspendida por moderación, US19)
     @ExceptionHandler(DisabledException.class)
     public ResponseEntity<ApiErrorResponse> handleDisabled(DisabledException ex,
                                                            HttpServletRequest req) {
-        return build(HttpStatus.FORBIDDEN, "Forbidden", "Tu cuenta está suspendida o deshabilitada", req);
+        return build(HttpStatus.FORBIDDEN, "Forbidden", messages.get("error.account.disabled"), req);
     }
 
     // NUEVO: 403 - el usuario no tiene permiso (rol o dueño del recurso)
@@ -91,7 +102,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleAccessDenied(AccessDeniedException ex,
                                                                HttpServletRequest req) {
         return build(HttpStatus.FORBIDDEN, "Forbidden",
-                ex.getMessage() != null ? ex.getMessage() : "Acceso denegado", req);
+                messages.get(ex.getMessage() != null ? ex.getMessage() : "error.access.denied"), req);
     }
 
     // 405 - se usó un método HTTP que el endpoint no acepta (ej. GET en vez de POST)
@@ -99,21 +110,47 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleMethodNotAllowed(HttpRequestMethodNotSupportedException ex,
                                                                    HttpServletRequest req) {
         return build(HttpStatus.METHOD_NOT_ALLOWED, "Method Not Allowed",
-                "El método " + ex.getMethod() + " no está permitido para esta ruta", req);
+                messages.get("error.method.not.allowed", ex.getMethod()), req);
     }
 
     // 404 - la URL no existe
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ApiErrorResponse> handleNoResource(NoResourceFoundException ex,
                                                              HttpServletRequest req) {
-        return build(HttpStatus.NOT_FOUND, "Not Found", "La ruta solicitada no existe", req);
+        return build(HttpStatus.NOT_FOUND, "Not Found", messages.get("error.route.not.found"), req);
+    }
+
+    // 400 - un parámetro de la URL tiene un tipo inválido (ej. /api/trips/abc en vez de un número)
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex,
+                                                               HttpServletRequest req) {
+        return build(HttpStatus.BAD_REQUEST, "Bad Request",
+                messages.get("error.param.invalid", ex.getName(), String.valueOf(ex.getValue())), req);
     }
 
     // 500 - cualquier otro error no previsto
+    // 415 - el body no se envió como JSON (ej. Content-Type: text/plain)
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ApiErrorResponse> handleMediaType(HttpMediaTypeNotSupportedException ex,
+                                                            HttpServletRequest req) {
+        return build(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Unsupported Media Type",
+                messages.get("error.media.type"), req);
+    }
+
+    // 400 - falta un parámetro obligatorio de la URL o de la petición
+    @ExceptionHandler(ServletRequestBindingException.class)
+    public ResponseEntity<ApiErrorResponse> handleBinding(ServletRequestBindingException ex,
+                                                          HttpServletRequest req) {
+        return build(HttpStatus.BAD_REQUEST, "Bad Request",
+                messages.get("error.param.missing"), req);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleGeneric(Exception ex, HttpServletRequest req) {
+        // Se registra el error real en la consola para poder diagnosticarlo
+        log.error("Error no controlado en {} {}", req.getMethod(), req.getRequestURI(), ex);
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error",
-                "Ocurrió un error inesperado", req);
+                messages.get("error.unexpected"), req);
     }
 
     private ResponseEntity<ApiErrorResponse> build(HttpStatus status, String error, String message,

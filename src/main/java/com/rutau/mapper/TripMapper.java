@@ -5,7 +5,7 @@ import com.rutau.model.Trip;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", uses = TripStopMapper.class)
 public interface TripMapper {
 
     @Mapping(source = "driver.id", target = "driverId")

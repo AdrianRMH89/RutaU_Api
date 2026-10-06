@@ -13,6 +13,8 @@ public record SeatRequestResponseDTO(
         Integer tripAvailableSeats,
         Long passengerId,
         String passengerName,
+        Long pickupStopId,          // US11 - null si el recojo es en el origen
+        String pickupPoint,         // US11 - dirección del punto de recojo/bajada
         RequestStatus status,
         LocalDateTime requestedAt
 ) {}

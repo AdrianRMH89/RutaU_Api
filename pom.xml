@@ -10,7 +10,7 @@
     </parent>
     <groupId>com.rutau</groupId>
     <artifactId>rutau-api</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>1.0.0</version>
     <name>rutau-api</name>
     <description>rutau-api</description>
     <url/>
@@ -31,6 +31,8 @@
         <!-- NUEVO: versiones de MapStruct y JJWT (las mismas del pom del profesor) -->
         <mapstruct.version>1.6.3</mapstruct.version>
         <jjwt.version>0.12.6</jjwt.version>
+        <!-- Swagger / OpenAPI (springdoc 3.x es la versión compatible con Spring Boot 4) -->
+        <springdoc.version>3.1.1</springdoc.version>
     </properties>
     <dependencies>
         <dependency>
@@ -82,6 +84,12 @@
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
+        </dependency>
+        <!-- Swagger UI: documentación interactiva de la API en /swagger-ui.html -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>${springdoc.version}</version>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>

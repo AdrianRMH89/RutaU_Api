@@ -8,23 +8,23 @@ import jakarta.validation.constraints.Size;
 
 public record VehicleRequestDTO(
 
-        @NotBlank(message = "La marca es obligatoria")
+        @NotBlank(message = "{validation.brand.required}")
         @Size(max = 50)
         String brand,
 
-        @NotBlank(message = "El modelo es obligatorio")
+        @NotBlank(message = "{validation.model.required}")
         @Size(max = 50)
         String model,
 
         @Size(max = 30)
         String color,
 
-        @NotBlank(message = "La placa es obligatoria")
+        @NotBlank(message = "{validation.plate.required}")
         @Size(max = 10)
         String plate,
 
-        @NotNull(message = "La capacidad es obligatoria")
-        @Min(value = 1, message = "La capacidad mínima es 1 pasajero")
-        @Max(value = 8, message = "La capacidad máxima es 8 pasajeros")
+        @NotNull(message = "{validation.capacity.required}")
+        @Min(value = 1, message = "{validation.capacity.min}")
+        @Max(value = 8, message = "{validation.capacity.max}")
         Integer capacity
 ) {}

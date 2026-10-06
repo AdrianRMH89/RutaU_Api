@@ -8,24 +8,24 @@ import jakarta.validation.constraints.Size;
 
 public record RegisterRequestDTO(
 
-        @NotBlank(message = "El nombre de usuario es obligatorio")
-        @Size(min = 3, max = 50, message = "El nombre de usuario debe tener entre 3 y 50 caracteres")
+        @NotBlank(message = "{validation.username.required}")
+        @Size(min = 3, max = 50, message = "{validation.username.size}")
         String name,
 
-        @NotBlank(message = "El correo es obligatorio")
-        @Email(message = "El correo no tiene un formato válido")
+        @NotBlank(message = "{validation.email.required}")
+        @Email(message = "{validation.email.format}")
         @Size(max = 150)
         String email,
 
-        @NotBlank(message = "La contraseña es obligatoria")
-        @Size(min = 6, max = 100, message = "La contraseña debe tener al menos 6 caracteres")
+        @NotBlank(message = "{validation.password.required}")
+        @Size(min = 6, max = 100, message = "{validation.password.min}")
         String password,
 
-        @NotBlank(message = "El nombre completo es obligatorio")
+        @NotBlank(message = "{validation.fullname.required}")
         @Size(max = 150)
         String fullName,
 
-        @NotBlank(message = "La universidad es obligatoria")
+        @NotBlank(message = "{validation.university.required}")
         @Size(max = 150)
         String university,
 
@@ -35,7 +35,7 @@ public record RegisterRequestDTO(
         @Size(max = 30)
         String phone,
 
-        @NotNull(message = "Debes aceptar los Términos de Servicio")
-        @AssertTrue(message = "Debes aceptar los Términos de Servicio")
+        @NotNull(message = "{validation.terms.required}")
+        @AssertTrue(message = "{validation.terms.required}")
         Boolean acceptTerms
 ) {}

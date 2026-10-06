@@ -1,5 +1,6 @@
 package com.rutau.dto.request;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.Min;
@@ -9,31 +10,36 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record TripRequestDTO(
 
-        @NotBlank(message = "El origen es obligatorio")
+        @NotBlank(message = "{validation.origin.required}")
         @Size(max = 200)
         String origin,
 
-        @NotBlank(message = "El destino es obligatorio")
+        @NotBlank(message = "{validation.destination.required}")
         @Size(max = 200)
         String destination,
 
-        @NotBlank(message = "La zona es obligatoria")
+        @NotBlank(message = "{validation.zone.required}")
         @Size(max = 100)
         String zone,
 
         // US02 - Escenario de error
-        @NotNull(message = "Debes indicar un horario válido")
-        @Future(message = "Debes indicar un horario válido")
+        @NotNull(message = "{validation.departure.invalid}")
+        @Future(message = "{validation.departure.invalid}")
         LocalDateTime departureTime,
 
-        @NotNull(message = "Debes indicar el número de asientos")
-        @Min(value = 0, message = "El número de asientos no puede ser negativo")
+        @NotNull(message = "{validation.seats.required}")
+        @Min(value = 0, message = "{validation.seats.negative}")
         Integer seats,
 
-        @NotNull(message = "Debes indicar el precio por asiento")
-        @DecimalMin(value = "0.0", message = "El precio no puede ser negativo")
-        BigDecimal pricePerSeat
+        @NotNull(message = "{validation.price.required}")
+        @DecimalMin(value = "0.0", message = "{validation.price.negative}")
+        BigDecimal pricePerSeat,
+
+        // US11 - Opcional: puntos intermedios de recojo o bajada (en el orden de la ruta)
+        @Size(max = 5, message = "{validation.stops.max}")
+        List<@Valid TripStopRequestDTO> stops
 ) {}
