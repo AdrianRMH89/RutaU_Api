@@ -34,3 +34,11 @@ rutau:
   admin:
     email: ${ADMIN_EMAIL:admin@rutau.edu.pe}
     password: ${ADMIN_PASSWORD:admin12345}
+
+
+# Swagger / OpenAPI (springdoc)
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: method
