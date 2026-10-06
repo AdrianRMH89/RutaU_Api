@@ -2,8 +2,12 @@ package com.rutau.controller;
 
 import com.rutau.dto.response.DemandReportResponseDTO;
 import com.rutau.service.AdminReportService;
+import com.rutau.service.ReportExportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -18,6 +22,7 @@ import java.time.LocalDate;
 public class AdminReportController {
 
     private final AdminReportService adminReportService;
+    private final ReportExportService reportExportService;
 
     // US17 - /api/admin/reports/demand?from=2026-11-01&to=2026-11-30
     @GetMapping("/demand")
@@ -25,5 +30,18 @@ public class AdminReportController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return adminReportService.demandReport(from, to);
+    }
+
+    // US18 - Descargar el reporte: /api/admin/reports/demand/export?format=xlsx (o pdf)&from=...&to=...
+    @GetMapping("/demand/export")
+    public ResponseEntity<byte[]> export(
+            @RequestParam String format,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        ReportExportService.ExportedFile file = reportExportService.exportDemandReport(format, from, to);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file.fileName() + "\"")
+                .contentType(MediaType.parseMediaType(file.contentType()))
+                .body(file.content());
     }
 }
