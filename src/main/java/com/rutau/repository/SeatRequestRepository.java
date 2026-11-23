@@ -27,6 +27,8 @@ public interface SeatRequestRepository extends JpaRepository<SeatRequest, Long> 
     List<SeatRequest> findByTripDepartureTimeBetween(LocalDateTime start, LocalDateTime end);
 
     boolean existsByTripIdAndPassengerId(Long tripId, Long passengerId);
+    // Duplicado "real": ignora las solicitudes que el pasajero canceló (así puede volver a solicitar)
+    boolean existsByTripIdAndPassengerIdAndStatusNot(Long tripId, Long passengerId, RequestStatus status);
 
     // US03 - ¿El pasajero tiene otra solicitud activa en un viaje que sale entre "start" y "end"?
     boolean existsByPassengerIdAndStatusInAndTripDepartureTimeBetween(
