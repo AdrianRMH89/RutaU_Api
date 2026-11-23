@@ -2,39 +2,76 @@ spring:
   application:
     name: rutau-api
 
+  # Lee el archivo .env de la carpeta donde se ejecuta la app (solo local).
+  # "optional:" evita el error si no existe: en Render se usan variables de entorno reales.
+  config:
+    import: optional:file:.env[.properties]
+
   # i18n: mensajes en es-419 (por defecto) y en-US, elegidos con el encabezado Accept-Language
   messages:
     basename: i18n/messages
     encoding: UTF-8
     fallback-to-system-locale: false
 
+  # Los valores salen del .env (local) o de las variables de entorno (Render)
   datasource:
-    url: jdbc:postgresql://localhost:5432/RutaU_DB
-    username: postgres
-    password: 1234
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/RutaU_DB}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD}          # sin valor por defecto: si falta, la app no arranca
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
 
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: true
+      ddl-auto: ${DDL_AUTO:update}    # update conserva los datos
+    show-sql: ${SHOW_SQL:false}
     properties:
       hibernate:
         format_sql: true
 
+  ai:
+    # Semana 12 · Lab 01: modelo del agente. Para Ollama: AI_BASE_URL=https://ollama.com/v1 y AI_MODEL=gpt-oss:120b
+    openai:
+      api-key: ${AI_API_KEY}
+      base-url: ${AI_BASE_URL:https://api.openai.com/v1}
+      chat:
+        options:
+          model: ${AI_MODEL:gpt-4.1-mini}
+          temperature: 0              # 0 = respuestas más fieles a los datos (recomendado para agentes)
+
+    retry:
+      max-attempts: 2
+    # Semana 13: la memoria del chat vive en PostgreSQL; crea su tabla al arrancar
+    chat:
+      memory:
+        repository:
+          jdbc:
+            initialize-schema: always
+    # Semana 13 · Parte 2: servidor MCP externo (en Render se apaga con MCP_ENABLED=false)
+    mcp:
+      client:
+        enabled: ${MCP_ENABLED:true}
+        stdio:
+          servers-configuration: classpath:/mcp/mcp-servers.json
+
 server:
-  port: 8081
+  port: ${PORT:8081}                  # Render define PORT; en local se usa 8081
 
 jwt:
-  # Clave para firmar los tokens (mínimo 32 caracteres). En producción se pasa por variable de entorno.
-  secret: ${JWT_SECRET:rutau-clave-secreta-de-desarrollo-cambiar-en-produccion-2026}
-  expiration-ms: 86400000   # 24 horas
+  # Clave para firmar los tokens (mínimo 32 caracteres)
+  secret: ${JWT_SECRET}
+  expiration-ms: ${JWT_EXPIRATION_MS:86400000}   # 24 horas
 
 rutau:
-  # Cuenta de administrador que se crea sola al iniciar (US17-US19). En producción, usar variables de entorno.
+  # Cuenta de administrador que se crea sola al iniciar (US17-US19)
   admin:
     email: ${ADMIN_EMAIL:admin@rutau.edu.pe}
-    password: ${ADMIN_PASSWORD:admin12345}
+    password: ${ADMIN_PASSWORD}
 
+app:
+  cors:
+    # Orígenes permitidos separados por coma, sin espacios ni "/" final
+    allowed-origins: ${CORS_ORIGINS:http://localhost:4200}
 
 # Swagger / OpenAPI (springdoc)
 springdoc:
