@@ -63,7 +63,9 @@ public class SeatRequestService {
             throw new ConflictException("seat.trip.full");
         }
 
-        if (seatRequestRepository.existsByTripIdAndPassengerId(trip.getId(), passenger.getId())) {
+        // Una solicitud CANCELADA no cuenta como duplicada: el pasajero puede volver a solicitar el asiento
+        if (seatRequestRepository.existsByTripIdAndPassengerIdAndStatusNot(
+                trip.getId(), passenger.getId(), RequestStatus.CANCELLED)) {
             throw new ConflictException("seat.duplicate");
         }
 
