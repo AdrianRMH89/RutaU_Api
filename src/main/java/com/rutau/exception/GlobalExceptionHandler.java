@@ -20,6 +20,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import tools.jackson.core.JacksonException;
 
 import java.util.List;
 import java.util.Map;
@@ -143,6 +144,12 @@ public class GlobalExceptionHandler {
                                                           HttpServletRequest req) {
         return build(HttpStatus.BAD_REQUEST, "Bad Request",
                 messages.get("error.param.missing"), req);
+    }
+
+    // Agente de IA: el modelo respondió texto en vez del JSON esperado
+    @ExceptionHandler(JacksonException.class)
+    public ResponseEntity<ApiErrorResponse> handleAiFormat(JacksonException ex, HttpServletRequest req) {
+        return build(HttpStatus.BAD_GATEWAY, "Bad Gateway", messages.get("agent.format.error"), req);
     }
 
     @ExceptionHandler(Exception.class)
